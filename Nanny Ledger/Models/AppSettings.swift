@@ -14,6 +14,10 @@ final class AppSettings {
     var hourlyRate: Double
     var appendTotalsToNote: Bool
     
+    // Recipient info for payments
+    var recipientName: String
+    var recipientPhone: String
+    
     // Default hours for each weekday (1=Sun...7=Sat)
     var sundayStart: String
     var sundayEnd: String
@@ -34,6 +38,8 @@ final class AppSettings {
         self.weekStartDay = 1 // Sunday
         self.hourlyRate = 35.0
         self.appendTotalsToNote = true
+        self.recipientName = "Maria"
+        self.recipientPhone = ""
         
         // Default: Sun-Thu, Sat = 22:00-08:00, Fri = 21:00-07:00
         self.sundayStart = "22:00"

@@ -47,6 +47,9 @@ struct HomeView: View {
                     
                     // Shift List
                     shiftListSection
+                    
+                    // Recipient Info
+                    recipientInfoSection
                 }
                 .padding()
             }
@@ -109,6 +112,32 @@ struct HomeView: View {
             Text("Rate: \(formatCurrency(settings.hourlyRate))/hour")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            
+            // Zelle Payment Note
+            if !weekShifts.isEmpty {
+                Divider()
+                    .padding(.vertical, 4)
+                
+                VStack(spacing: 4) {
+                    Text("Zelle Payment Note")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    Button {
+                        UIPasteboard.general.string = zelleNote
+                    } label: {
+                        Text(zelleNote)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -268,6 +297,43 @@ struct HomeView: View {
         }
     }
     
+    // MARK: - Recipient Info Section
+    
+    private var recipientInfoSection: some View {
+        VStack(spacing: 8) {
+            Text("Payment To")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(settings.recipientName.isEmpty ? "Tap to add name" : settings.recipientName)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    if !settings.recipientPhone.isEmpty {
+                        Text(settings.recipientPhone)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+    
     // MARK: - Computed Properties
     
     private var weekShifts: [Shift] {
@@ -281,6 +347,10 @@ struct HomeView: View {
     
     private var weekTotal: Double {
         weekHours * settings.hourlyRate
+    }
+    
+    private var zelleNote: String {
+        NoteGenerator.generateZelleNote(shifts: weekShifts)
     }
     
     // MARK: - Actions

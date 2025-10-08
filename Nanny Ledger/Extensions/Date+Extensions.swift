@@ -44,4 +44,10 @@ extension Date {
         formatter.dateStyle = .medium
         return formatter.string(from: self)
     }
+    
+    func formattedWithWeekday() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d, yyyy" // "Sun, Oct 5, 2025"
+        return formatter.string(from: self)
+    }
 }

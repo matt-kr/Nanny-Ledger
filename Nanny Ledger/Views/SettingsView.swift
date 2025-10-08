@@ -15,6 +15,12 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Payment Recipient") {
+                    TextField("Name", text: $settings.recipientName)
+                    TextField("Phone Number", text: $settings.recipientPhone)
+                        .keyboardType(.phonePad)
+                }
+                
                 Section("General") {
                     Picker("Week Starts On", selection: $settings.weekStartDay) {
                         Text("Sunday").tag(1)

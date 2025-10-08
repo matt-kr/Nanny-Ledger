@@ -13,7 +13,7 @@ struct ShiftRowView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(shift.date.formattedMedium())
+                Text(shift.date.formattedWithWeekday())
                     .font(.headline)
                 
                 Text("\(shift.startTime) – \(shift.endTime)")
