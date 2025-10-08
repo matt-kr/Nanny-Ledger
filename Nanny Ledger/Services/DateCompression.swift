@@ -58,13 +58,6 @@ struct DateCompression {
             return f
         }()
         
-        let fullFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.locale = .current
-            f.dateStyle = .medium
-            return f
-        }()
-        
         let calendar = Calendar.current
         
         func sameMonthYear(_ a: Date, _ b: Date) -> Bool {

@@ -290,7 +290,7 @@ struct HomeView: View {
     
     private func logTonight() {
         let today = Date()
-        let defaults = settings?.defaultTimes(for: today) ?? ("22:00", "08:00")
+        let defaults = settings?.defaultTimes(for: today) ?? (start: "22:00", end: "08:00")
         
         let shift = Shift(
             date: today,
@@ -304,7 +304,7 @@ struct HomeView: View {
     
     private func logLastNight() {
         let yesterday = Date().addingDays(-1)
-        let defaults = settings?.defaultTimes(for: yesterday) ?? ("22:00", "08:00")
+        let defaults = settings?.defaultTimes(for: yesterday) ?? (start: "22:00", end: "08:00")
         
         let shift = Shift(
             date: yesterday,

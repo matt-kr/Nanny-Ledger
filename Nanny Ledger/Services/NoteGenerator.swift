@@ -18,8 +18,10 @@ struct NoteGenerator {
         let datesString = DateCompression.formatRuns(runs)
         
         // Check if all shifts have same hours
-        let uniqueHours = Set(shifts.map { ($0.startTime, $0.endTime) })
-        let uniformHours = uniqueHours.count == 1
+        let uniformHours: Bool = {
+            guard let first = shifts.first else { return false }
+            return shifts.allSatisfy { $0.startTime == first.startTime && $0.endTime == first.endTime }
+        }()
         
         var note = "Night nanny dates: \(datesString)"
         

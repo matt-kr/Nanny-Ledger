@@ -38,7 +38,7 @@ final class Shift {
         let startComponents = calendar.dateComponents([.hour, .minute], from: start)
         let endComponents = calendar.dateComponents([.hour, .minute], from: end)
         
-        var startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
+        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
         var endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
         
         // If end is before start, it's an overnight shift

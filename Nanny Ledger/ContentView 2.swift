@@ -7,13 +7,15 @@
 
 import SwiftUI
 import UIKit
+import SwiftData
 
-struct ContentView: View {
-    @EnvironmentObject var store: ShiftStore
+struct MainContentView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: [SortDescriptor<Shift>(\.date, order: .reverse)]) private var shifts: [Shift]
 
     @State private var customDate = Date().startOfDayLocal
-    @State private var startTime = defaultStart()
-    @State private var endTime = defaultEnd()
+    @State private var startTime = "22:00"
+    @State private var endTime = "08:00"
 
     // Settings
     @State private var weekStartsOn: Int = 1 // 1=Sun default (US-style)
@@ -47,7 +49,7 @@ struct ContentView: View {
 }
 
 // MARK: - Sections
-private extension ContentView {
+private extension MainContentView {
     var quickLogSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Quick log").font(.headline)
@@ -62,7 +64,7 @@ private extension ContentView {
                 .buttonStyle(.borderedProminent)
 
                 Button {
-                    let y = Date().addingDays(-1).startOfDayLocal
+                    let y = Calendar.current.date(byAdding: .day, value: -1, to: Date())!.startOfDayLocal
                     let (s, e) = defaults.startEnd(for: y)
                     addShift(date: y, start: s, end: e)
                 } label: {
@@ -137,13 +139,13 @@ private extension ContentView {
         VStack(alignment: .leading, spacing: 8) {
             List {
                 Section("Logged nights") {
-                    ForEach(store.shifts.sorted { $0.date > $1.date }) { shift in
+                    ForEach(shifts) { shift in
                         VStack(alignment: .leading) {
                             Text(formattedDate(shift.date)).font(.headline)
                             Text("\(shift.startTime)–\(shift.endTime)").foregroundStyle(.secondary)
                         }
                     }
-                    .onDelete(perform: delete)
+                    .onDelete(perform: deleteShifts)
                 }
             }
             .frame(maxHeight: 300)
@@ -193,7 +195,7 @@ private extension ContentView {
                     showingShare = true
                 } label: { Label("Share…", systemImage: "square.and.arrow.up") }
                 .buttonStyle(.bordered)
-                .sheet(isPresented: $showingShare) { ShareSheet(items: [generatedNote]) }
+                .sheet(isPresented: $showingShare) { ActivityShareSheet(items: [generatedNote]) }
             }
 
             TextEditor(text: $generatedNote)
@@ -204,7 +206,7 @@ private extension ContentView {
 }
 
 // MARK: - Actions & Logic
-private extension ContentView {
+private extension MainContentView {
     func ensureDefaultsKey(_ wd: Int) {
         if defaults.weekdayStartEnd[wd] == nil {
             defaults.weekdayStartEnd[wd] = (defaultStart(), defaultEnd())
@@ -212,48 +214,34 @@ private extension ContentView {
     }
 
     func addShift(date: Date, start: String, end: String) {
-        let shift = Shift(id: UUID(), date: date.startOfDayLocal, startTime: start, endTime: end)
-        if !store.shifts.contains(where: { Calendar.current.isDate($0.date, inSameDayAs: shift.date) }) {
-            store.shifts.append(shift)
-        }
+        let day = Calendar.current.startOfDay(for: date)
+        // Check duplicate
+        let descriptor = FetchDescriptor<Shift>(predicate: #Predicate { $0.date == day })
+        if let existing = try? modelContext.fetch(descriptor), !existing.isEmpty { return }
+        let shift = Shift(date: day, startTime: start, endTime: end)
+        modelContext.insert(shift)
+        try? modelContext.save()
     }
 
-    func delete(at offsets: IndexSet) {
-        let sorted = store.shifts.sorted { $0.date > $1.date }
-        var base = store.shifts
-        for index in offsets { if let idx = base.firstIndex(of: sorted[index]) { base.remove(at: idx) } }
-        store.shifts = base
+    func deleteShifts(at offsets: IndexSet) {
+        for index in offsets { modelContext.delete(shifts[index]) }
+        try? modelContext.save()
     }
 
     func generateNote(from shifts: [Shift]) -> String {
-        let dates = shifts.map { $0.date }
-        let runs = compressDates(dates)
-        var noteCore = formatRuns(runs)
-
-        if let hours = uniformHours(in: shifts) {
-            noteCore += " (\(hours))"
-        }
-
-        if appendTotals {
-            let h = totalHours(for: shifts)
-            let n = shifts.count
-            let total = h * currentRate
-            let money = formatMoney(total)
-            noteCore += n > 0 ? " — \(n) night\(n == 1 ? "" : "s"), ~\(formatHours(h))h, $\(money)" : ""
-        }
-        let header = "Night nanny dates:"
-        return noteCore.isEmpty ? "" : "\(header) \(noteCore)"
+        // Use NoteGenerator with current settings
+        return NoteGenerator.generateFullNote(shifts: shifts, rate: currentRate)
     }
 
     func generateNoteWTD() -> String {
         let today = Date()
         let start = startOfWeek(for: today, weekStartsOn: weekStartsOn)
         let end = endOfWeekUpToToday(for: today)
-        let filtered = store.shifts.filter { $0.date >= start && $0.date <= end }
-        return generateNote(from: filtered)
+        let filtered = shifts.filter { $0.date >= start && $0.date <= end }
+        return NoteGenerator.generateWeekNote(shifts: filtered, rate: currentRate, appendTotals: appendTotals)
     }
 
-    func generateNoteAll() -> String { generateNote(from: store.shifts) }
+    func generateNoteAll() -> String { generateNote(from: shifts) }
 
     func uniformHours(in shifts: [Shift]) -> String? {
         guard let first = shifts.first else { return nil }
@@ -306,9 +294,10 @@ private extension ContentView {
         let today = Date()
         let start = startOfWeek(for: today, weekStartsOn: weekStartsOn)
         let end = endOfWeekUpToToday(for: today)
-        let filtered = store.shifts.filter { $0.date >= start && $0.date <= end }
+        let filtered = shifts.filter { $0.date >= start && $0.date <= end }
         let count = filtered.count
         let hours = totalHours(for: filtered)
         return (count, hours, { rate in hours * rate })
     }
 }
+

@@ -14,7 +14,7 @@ extension Date {
     
     func startOfWeek(weekStartDay: Int = 1) -> Date {
         let calendar = Calendar.current
-        var date = self.startOfDay
+        let date = self.startOfDay
         let currentWeekday = calendar.component(.weekday, from: date)
         
         var daysToSubtract = currentWeekday - weekStartDay
