@@ -1,0 +1,62 @@
+//
+//  NoteGenerator.swift
+//  Nanny Ledger
+//
+//  Created by Matt Krussow on 10/8/25.
+//
+
+import Foundation
+
+struct NoteGenerator {
+    
+    /// Generate Week-to-Date note
+    static func generateWeekNote(shifts: [Shift], rate: Double, appendTotals: Bool) -> String {
+        guard !shifts.isEmpty else { return "No shifts logged this week" }
+        
+        let dates = shifts.map { $0.date }
+        let runs = DateCompression.compressDates(dates)
+        let datesString = DateCompression.formatRuns(runs)
+        
+        // Check if all shifts have same hours
+        let uniqueHours = Set(shifts.map { ($0.startTime, $0.endTime) })
+        let uniformHours = uniqueHours.count == 1
+        
+        var note = "Night nanny dates: \(datesString)"
+        
+        if uniformHours, let first = shifts.first {
+            note += " (\(first.startTime)–\(first.endTime))"
+        }
+        
+        if appendTotals {
+            let nightCount = shifts.count
+            let totalHours = shifts.reduce(0.0) { $0 + $1.roundedHours }
+            let totalAmount = totalHours * rate
+            
+            note += " — \(nightCount) \(nightCount == 1 ? "night" : "nights"), ~\(String(format: "%.2f", totalHours))h, \(formatCurrency(totalAmount))"
+        }
+        
+        return note
+    }
+    
+    /// Generate full note (all time)
+    static func generateFullNote(shifts: [Shift], rate: Double) -> String {
+        guard !shifts.isEmpty else { return "No shifts logged" }
+        
+        let dates = shifts.map { $0.date }
+        let runs = DateCompression.compressDates(dates)
+        let datesString = DateCompression.formatRuns(runs)
+        
+        let nightCount = shifts.count
+        let totalHours = shifts.reduce(0.0) { $0 + $1.roundedHours }
+        let totalAmount = totalHours * rate
+        
+        return "Night nanny dates: \(datesString) — \(nightCount) \(nightCount == 1 ? "night" : "nights"), ~\(String(format: "%.2f", totalHours))h, \(formatCurrency(totalAmount))"
+    }
+    
+    private static func formatCurrency(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = .current
+        return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
+    }
+}
