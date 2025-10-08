@@ -15,7 +15,11 @@ struct NannyLedgerApp: App {
     init() {
         do {
             let schema = Schema([Shift.self, AppSettings.self])
-            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            let config = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                cloudKitDatabase: .automatic
+            )
             container = try ModelContainer(for: schema, configurations: config)
         } catch {
             fatalError("Failed to initialize ModelContainer: \(error)")
