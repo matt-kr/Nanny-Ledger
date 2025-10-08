@@ -56,9 +56,14 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Nanny Ledger")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Nanny Ledger")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                }
+                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingSettings = true
