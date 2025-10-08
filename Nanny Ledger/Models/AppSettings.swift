@@ -10,9 +10,9 @@ import SwiftData
 
 @Model
 final class AppSettings {
-    var weekStartDay: Int // 1 = Sunday, 2 = Monday, etc.
-    var hourlyRate: Double
-    var appendTotalsToNote: Bool
+    var weekStartDay: Int = 1 // 1 = Sunday, 2 = Monday, etc.
+    var hourlyRate: Double = 35.0
+    var appendTotalsToNote: Bool = true
     
     // Recipient info for payments (optional for migration compatibility)
     var recipientName: String = "Maria"
@@ -22,20 +22,20 @@ final class AppSettings {
     var colorScheme: Int = 0
     
     // Default hours for each weekday (1=Sun...7=Sat)
-    var sundayStart: String
-    var sundayEnd: String
-    var mondayStart: String
-    var mondayEnd: String
-    var tuesdayStart: String
-    var tuesdayEnd: String
-    var wednesdayStart: String
-    var wednesdayEnd: String
-    var thursdayStart: String
-    var thursdayEnd: String
-    var fridayStart: String
-    var fridayEnd: String
-    var saturdayStart: String
-    var saturdayEnd: String
+    var sundayStart: String = "22:00"
+    var sundayEnd: String = "08:00"
+    var mondayStart: String = "22:00"
+    var mondayEnd: String = "08:00"
+    var tuesdayStart: String = "22:00"
+    var tuesdayEnd: String = "08:00"
+    var wednesdayStart: String = "22:00"
+    var wednesdayEnd: String = "08:00"
+    var thursdayStart: String = "22:00"
+    var thursdayEnd: String = "08:00"
+    var fridayStart: String = "21:00"
+    var fridayEnd: String = "07:00"
+    var saturdayStart: String = "22:00"
+    var saturdayEnd: String = "08:00"
     
     init() {
         self.weekStartDay = 1 // Sunday

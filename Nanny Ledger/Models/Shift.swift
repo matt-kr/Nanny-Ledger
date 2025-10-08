@@ -10,10 +10,10 @@ import SwiftData
 
 @Model
 final class Shift {
-    @Attribute(.unique) var date: Date // Start of day for the night they arrived
-    var startTime: String // HH:mm format (e.g., "22:00")
-    var endTime: String   // HH:mm format (e.g., "08:00")
-    var createdAt: Date
+    var date: Date = Date() // Start of day for the night they arrived (removed .unique for CloudKit)
+    var startTime: String = "22:00" // HH:mm format (e.g., "22:00")
+    var endTime: String = "08:00"   // HH:mm format (e.g., "08:00")
+    var createdAt: Date = Date()
     var createdBy: String? // Optional: user identifier
     
     init(date: Date, startTime: String, endTime: String, createdBy: String? = nil) {
