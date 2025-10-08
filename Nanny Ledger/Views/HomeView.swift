@@ -11,12 +11,23 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Shift.date, order: .reverse) private var allShifts: [Shift]
+    @Query private var settingsQuery: [AppSettings]
     
-    @State private var settings: AppSettings?
     @State private var showingAddSheet = false
     @State private var showingSettings = false
     @State private var showingShareSheet = false
     @State private var shareText = ""
+    
+    private var settings: AppSettings {
+        if let existing = settingsQuery.first {
+            return existing
+        } else {
+            let newSettings = AppSettings()
+            modelContext.insert(newSettings)
+            try? modelContext.save()
+            return newSettings
+        }
+    }
     
     var body: some View {
         NavigationStack {
@@ -53,13 +64,10 @@ struct HomeView: View {
                 AddShiftView()
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView(settings: settings ?? AppSettings())
+                SettingsView(settings: settings)
             }
             .sheet(isPresented: $showingShareSheet) {
                 ShareSheet(items: [shareText])
-            }
-            .onAppear {
-                loadSettings()
             }
         }
     }
@@ -98,7 +106,7 @@ struct HomeView: View {
                 }
             }
             
-            Text("Rate: \(formatCurrency(settings?.hourlyRate ?? 35.0))/hour")
+            Text("Rate: \(formatCurrency(settings.hourlyRate))/hour")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -263,7 +271,7 @@ struct HomeView: View {
     // MARK: - Computed Properties
     
     private var weekShifts: [Shift] {
-        let weekStart = Date().startOfWeek(weekStartDay: settings?.weekStartDay ?? 1)
+        let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
         return allShifts.filter { $0.date >= weekStart }
     }
     
@@ -272,25 +280,14 @@ struct HomeView: View {
     }
     
     private var weekTotal: Double {
-        weekHours * (settings?.hourlyRate ?? 35.0)
+        weekHours * settings.hourlyRate
     }
     
     // MARK: - Actions
     
-    private func loadSettings() {
-        let descriptor = FetchDescriptor<AppSettings>()
-        if let existingSettings = try? modelContext.fetch(descriptor).first {
-            settings = existingSettings
-        } else {
-            let newSettings = AppSettings()
-            modelContext.insert(newSettings)
-            settings = newSettings
-        }
-    }
-    
     private func logTonight() {
         let today = Date()
-        let defaults = settings?.defaultTimes(for: today) ?? (start: "22:00", end: "08:00")
+        let defaults = settings.defaultTimes(for: today)
         
         let shift = Shift(
             date: today,
@@ -304,7 +301,7 @@ struct HomeView: View {
     
     private func logLastNight() {
         let yesterday = Date().addingDays(-1)
-        let defaults = settings?.defaultTimes(for: yesterday) ?? (start: "22:00", end: "08:00")
+        let defaults = settings.defaultTimes(for: yesterday)
         
         let shift = Shift(
             date: yesterday,
@@ -324,8 +321,8 @@ struct HomeView: View {
     private func copyWeekNote() {
         let note = NoteGenerator.generateWeekNote(
             shifts: weekShifts,
-            rate: settings?.hourlyRate ?? 35.0,
-            appendTotals: settings?.appendTotalsToNote ?? true
+            rate: settings.hourlyRate,
+            appendTotals: settings.appendTotalsToNote
         )
         UIPasteboard.general.string = note
     }
@@ -333,8 +330,8 @@ struct HomeView: View {
     private func shareWeekNote() {
         shareText = NoteGenerator.generateWeekNote(
             shifts: weekShifts,
-            rate: settings?.hourlyRate ?? 35.0,
-            appendTotals: settings?.appendTotalsToNote ?? true
+            rate: settings.hourlyRate,
+            appendTotals: settings.appendTotalsToNote
         )
         showingShareSheet = true
     }
@@ -342,7 +339,7 @@ struct HomeView: View {
     private func copyFullNote() {
         let note = NoteGenerator.generateFullNote(
             shifts: allShifts,
-            rate: settings?.hourlyRate ?? 35.0
+            rate: settings.hourlyRate
         )
         UIPasteboard.general.string = note
     }
