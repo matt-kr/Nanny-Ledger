@@ -32,17 +32,27 @@ struct CloudKitSharingService {
         rootRecord["title"] = "Nanny Ledger" as CKRecordValue
         rootRecord["createdAt"] = Date() as CKRecordValue
         
-        // Save the root record first
-        let savedRecord = try await privateDatabase.save(rootRecord)
-        
         // Create the share
-        let share = CKShare(rootRecord: savedRecord)
+        let share = CKShare(rootRecord: rootRecord)
         share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
         share.publicPermission = .none
         
-        // Save the share
-        let savedShare = try await privateDatabase.save(share)
+        // Save both the root record and share in a single operation
+        let operation = CKModifyRecordsOperation(recordsToSave: [rootRecord, share], recordIDsToDelete: nil)
+        operation.savePolicy = .changedKeys
+        operation.qualityOfService = .userInitiated
         
-        return savedShare
+        return try await withCheckedThrowingContinuation { continuation in
+            operation.modifyRecordsResultBlock = { result in
+                switch result {
+                case .success():
+                    continuation.resume(returning: share)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            
+            privateDatabase.add(operation)
+        }
     }
 }
