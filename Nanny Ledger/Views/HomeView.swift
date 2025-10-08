@@ -15,8 +15,7 @@ struct HomeView: View {
     
     @State private var showingAddSheet = false
     @State private var showingSettings = false
-    @State private var showingShareSheet = false
-    @State private var shareText = ""
+    @State private var shareItem: ShareItem?
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -69,8 +68,8 @@ struct HomeView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView(settings: settings)
             }
-            .sheet(isPresented: $showingShareSheet) {
-                ShareSheet(items: [shareText])
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.text])
             }
         }
     }
@@ -406,12 +405,12 @@ struct HomeView: View {
     }
     
     private func shareWeekNote() {
-        shareText = NoteGenerator.generateWeekNote(
+        let note = NoteGenerator.generateWeekNote(
             shifts: weekShifts,
             rate: settings.hourlyRate,
             appendTotals: settings.appendTotalsToNote
         )
-        showingShareSheet = true
+        shareItem = ShareItem(text: note)
     }
     
     private func copyFullNote() {
@@ -431,6 +430,11 @@ struct HomeView: View {
 }
 
 // MARK: - Share Sheet
+
+struct ShareItem: Identifiable {
+    let id = UUID()
+    let text: String
+}
 
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
