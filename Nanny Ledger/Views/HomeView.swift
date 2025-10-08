@@ -16,6 +16,7 @@ struct HomeView: View {
     @State private var showingAddSheet = false
     @State private var showingSettings = false
     @State private var shareItem: ShareItem?
+    @State private var showingHistory = false
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -70,6 +71,9 @@ struct HomeView: View {
             }
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.text])
+            }
+            .sheet(isPresented: $showingHistory) {
+                HistoryView()
             }
         }
     }
@@ -280,17 +284,34 @@ struct HomeView: View {
     
     private var shiftListSection: some View {
         VStack(spacing: 12) {
-            Text("Logged Nights")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Text("This Week's Nights")
+                    .font(.headline)
+                
+                Spacer()
+                
+                if hasHistoricalShifts {
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("View History")
+                                .font(.subheadline)
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.subheadline)
+                        }
+                        .foregroundColor(.blue)
+                    }
+                }
+            }
             
-            if allShifts.isEmpty {
-                Text("No shifts logged yet")
+            if weekShifts.isEmpty {
+                Text("No shifts logged this week")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
             } else {
-                ForEach(allShifts) { shift in
+                ForEach(weekShifts) { shift in
                     ShiftRowView(shift: shift)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
@@ -346,6 +367,11 @@ struct HomeView: View {
     private var weekShifts: [Shift] {
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
         return allShifts.filter { $0.date >= weekStart }
+    }
+    
+    private var hasHistoricalShifts: Bool {
+        let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
+        return allShifts.contains { $0.date < weekStart }
     }
     
     private var weekHours: Double {
