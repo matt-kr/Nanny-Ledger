@@ -10,6 +10,7 @@ import SwiftUI
 struct ShiftRowView: View {
     let shift: Shift
     var onDelete: (() -> Void)? = nil
+    var onTap: (() -> Void)? = nil
     
     var body: some View {
         HStack {
@@ -46,5 +47,11 @@ struct ShiftRowView: View {
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let onTap = onTap {
+                onTap()
+            }
+        }
     }
 }

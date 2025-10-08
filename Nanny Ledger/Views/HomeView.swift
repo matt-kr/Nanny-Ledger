@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var showingHistory = false
     @State private var shiftToDelete: Shift?
     @State private var showingDeleteConfirmation = false
+    @State private var shiftToEdit: Shift?
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -78,6 +79,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingHistory) {
                 HistoryView()
+            }
+            .sheet(item: $shiftToEdit) { shift in
+                EditShiftView(shift: shift)
             }
             .alert("Delete Shift?", isPresented: $showingDeleteConfirmation, presenting: shiftToDelete) { shift in
                 Button("Cancel", role: .cancel) {
@@ -331,10 +335,16 @@ struct HomeView: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(weekShifts) { shift in
-                        ShiftRowView(shift: shift) {
-                            shiftToDelete = shift
-                            showingDeleteConfirmation = true
-                        }
+                        ShiftRowView(
+                            shift: shift,
+                            onDelete: {
+                                shiftToDelete = shift
+                                showingDeleteConfirmation = true
+                            },
+                            onTap: {
+                                shiftToEdit = shift
+                            }
+                        )
                     }
                 }
             }

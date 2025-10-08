@@ -9,7 +9,7 @@ import Foundation
 
 struct NoteGenerator {
     
-    /// Generate Zelle-ready payment note: "Sun 5 Oct - Mon 6 Oct - Tue 7 Oct"
+    /// Generate Zelle-ready payment note: "Sun 5 Oct, Mon 6 Oct, Tue 7 Oct"
     static func generateZelleNote(shifts: [Shift]) -> String {
         guard !shifts.isEmpty else { return "No shifts this week" }
         
@@ -19,7 +19,7 @@ struct NoteGenerator {
         formatter.dateFormat = "EEE d MMM" // "Sun 5 Oct"
         
         let dateStrings = sortedShifts.map { formatter.string(from: $0.date) }
-        return dateStrings.joined(separator: " - ")
+        return dateStrings.joined(separator: ", ")
     }
     
     /// Generate Week-to-Date note
