@@ -16,6 +16,8 @@ struct SettingsView: View {
     
     @State private var showingShareSheet = false
     @State private var shareItems: [Any] = []
+    @State private var showingError = false
+    @State private var errorMessage = ""
     
     var body: some View {
         NavigationStack {
@@ -127,6 +129,11 @@ struct SettingsView: View {
                     CloudKitShareSheet(items: shareItems)
                 }
             }
+            .alert("Sharing Error", isPresented: $showingError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
@@ -138,16 +145,19 @@ struct SettingsView: View {
                 
                 // Create share using CloudKit
                 let share = try await CloudKitSharingService.createShare(for: container)
-                shareItems = [share]
-                showingShareSheet = true
+                
+                await MainActor.run {
+                    shareItems = [share]
+                    showingShareSheet = true
+                }
             } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to create share: \(error.localizedDescription)"
+                    showingError = true
+                }
                 print("Error sharing: \(error)")
             }
         }
-    }
-    
-    private func createCloudKitShare(for container: ModelContainer) async throws -> CKShare {
-        return try await CloudKitSharingService.createShare(for: container)
     }
 }
 

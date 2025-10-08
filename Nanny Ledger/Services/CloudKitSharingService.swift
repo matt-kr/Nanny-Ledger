@@ -10,14 +10,39 @@ import SwiftData
 import CloudKit
 
 /// Service for managing CloudKit sharing
-/// Note: This is a simplified implementation for basic sharing functionality
 struct CloudKitSharingService {
     
     static func createShare(for container: ModelContainer) async throws -> CKShare {
-        // Create a CloudKit share for the data
-        let share = CKShare(rootRecord: CKRecord(recordType: "NannyLedgerData"))
+        let ckContainer = CKContainer.default()
+        let privateDatabase = ckContainer.privateCloudDatabase
+        
+        // Create a root record zone if it doesn't exist
+        let zoneID = CKRecordZone.ID(zoneName: "NannyLedgerZone", ownerName: CKCurrentUserDefaultName)
+        let zone = CKRecordZone(zoneID: zoneID)
+        
+        do {
+            try await privateDatabase.save(zone)
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            // Zone already exists, that's fine
+        }
+        
+        // Create a root record for the share
+        let rootRecordID = CKRecord.ID(recordName: "NannyLedgerRoot", zoneID: zoneID)
+        let rootRecord = CKRecord(recordType: "NannyLedgerData", recordID: rootRecordID)
+        rootRecord["title"] = "Nanny Ledger" as CKRecordValue
+        rootRecord["createdAt"] = Date() as CKRecordValue
+        
+        // Save the root record first
+        let savedRecord = try await privateDatabase.save(rootRecord)
+        
+        // Create the share
+        let share = CKShare(rootRecord: savedRecord)
         share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
         share.publicPermission = .none
-        return share
+        
+        // Save the share
+        let savedShare = try await privateDatabase.save(share)
+        
+        return savedShare
     }
 }
