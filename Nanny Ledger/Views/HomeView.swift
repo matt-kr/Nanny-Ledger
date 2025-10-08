@@ -87,6 +87,8 @@ struct HomeView: View {
                 VStack {
                     Text("\(weekShifts.count)")
                         .font(.system(size: 36, weight: .bold))
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
                     Text(weekShifts.count == 1 ? "night" : "nights")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -95,6 +97,8 @@ struct HomeView: View {
                 VStack {
                     Text(String(format: "%.2f", weekHours))
                         .font(.system(size: 36, weight: .bold))
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
                     Text("hours")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -103,6 +107,8 @@ struct HomeView: View {
                 VStack {
                     Text(formatCurrency(weekTotal))
                         .font(.system(size: 36, weight: .bold))
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
                     Text("total due")
                         .font(.caption)
                         .foregroundStyle(.secondary)
