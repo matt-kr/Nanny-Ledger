@@ -327,16 +327,13 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
             } else {
-                ForEach(weekShifts) { shift in
-                    ShiftRowView(shift: shift)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                shiftToDelete = shift
-                                showingDeleteConfirmation = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                VStack(spacing: 8) {
+                    ForEach(weekShifts) { shift in
+                        ShiftRowView(shift: shift) {
+                            shiftToDelete = shift
+                            showingDeleteConfirmation = true
                         }
+                    }
                 }
             }
         }

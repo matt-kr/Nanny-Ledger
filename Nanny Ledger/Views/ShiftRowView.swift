@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ShiftRowView: View {
     let shift: Shift
+    var onDelete: (() -> Void)? = nil
     
     var body: some View {
         HStack {
@@ -30,6 +31,16 @@ struct ShiftRowView: View {
                 Text("~\(String(format: "%.1f", shift.durationHours)) hrs")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            
+            if let onDelete = onDelete {
+                Button {
+                    onDelete()
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                        .padding(.leading, 8)
+                }
             }
         }
         .padding()
