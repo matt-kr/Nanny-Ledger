@@ -14,9 +14,9 @@ final class AppSettings {
     var hourlyRate: Double
     var appendTotalsToNote: Bool
     
-    // Recipient info for payments
-    var recipientName: String
-    var recipientPhone: String
+    // Recipient info for payments (optional for migration compatibility)
+    var recipientName: String = "Maria"
+    var recipientPhone: String = ""
     
     // Default hours for each weekday (1=Sun...7=Sat)
     var sundayStart: String
