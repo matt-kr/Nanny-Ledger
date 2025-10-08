@@ -133,16 +133,11 @@ struct SettingsView: View {
     private func shareData() {
         Task {
             do {
-                // Get all shifts to share
-                let descriptor = FetchDescriptor<Shift>()
-                let shifts = try modelContext.fetch(descriptor)
-                
-                // For now, we'll create a share sheet with the container
-                // In a production app, this would create a proper CKShare
+                // Get the model container
                 let container = modelContext.container
                 
                 // Create share using CloudKit
-                let share = try await createCloudKitShare(for: container)
+                let share = try await CloudKitSharingService.createShare(for: container)
                 shareItems = [share]
                 showingShareSheet = true
             } catch {
@@ -152,11 +147,7 @@ struct SettingsView: View {
     }
     
     private func createCloudKitShare(for container: ModelContainer) async throws -> CKShare {
-        // This creates a CloudKit share for the entire container
-        let share = CKShare(rootRecord: CKRecord(recordType: "NannyLedgerData"))
-        share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
-        share.publicPermission = .none
-        return share
+        return try await CloudKitSharingService.createShare(for: container)
     }
 }
 
@@ -166,17 +157,12 @@ struct CloudKitShareSheet: UIViewControllerRepresentable {
     
     func makeUIViewController(context: Context) -> UICloudSharingController {
         guard let share = items.first as? CKShare else {
-            // Fallback to regular activity controller
-            return UICloudSharingController { controller, completion in
-                completion(nil, nil)
-            }
+            // Fallback - create a dummy controller
+            let dummyShare = CKShare(rootRecord: CKRecord(recordType: "Fallback"))
+            return UICloudSharingController(share: dummyShare, container: CKContainer.default())
         }
         
-        let controller = UICloudSharingController { controller, preparationHandler in
-            // Prepare the share
-            preparationHandler(share, CKContainer.default(), nil)
-        }
-        
+        let controller = UICloudSharingController(share: share, container: CKContainer.default())
         controller.availablePermissions = [.allowReadWrite, .allowPrivate]
         controller.delegate = context.coordinator
         
@@ -196,8 +182,6 @@ struct CloudKitShareSheet: UIViewControllerRepresentable {
         
         func itemTitle(for csc: UICloudSharingController) -> String? {
             "Nanny Ledger"
-        }
-    }
         }
     }
 }

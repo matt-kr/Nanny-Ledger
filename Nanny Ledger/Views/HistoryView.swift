@@ -141,9 +141,9 @@ struct WeekGroupView: View {
             
             // Shifts in this week
             ForEach(shifts) { shift in
-                ShiftRowView(shift: shift) {
+                ShiftRowView(shift: shift, onDelete: {
                     onDelete(shift)
-                }
+                })
             }
         }
     }
