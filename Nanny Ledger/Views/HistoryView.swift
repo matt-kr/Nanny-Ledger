@@ -14,6 +14,9 @@ struct HistoryView: View {
     @Query(sort: \Shift.date, order: .reverse) private var allShifts: [Shift]
     @Query private var settingsQuery: [AppSettings]
     
+    @State private var shiftToDelete: Shift?
+    @State private var showingDeleteConfirmation = false
+    
     private var settings: AppSettings? {
         settingsQuery.first
     }
@@ -55,7 +58,11 @@ struct HistoryView: View {
                             WeekGroupView(
                                 weekStart: group.weekStart,
                                 shifts: group.shifts,
-                                settings: settings
+                                settings: settings,
+                                onDelete: { shift in
+                                    shiftToDelete = shift
+                                    showingDeleteConfirmation = true
+                                }
                             )
                         }
                     }
@@ -71,6 +78,20 @@ struct HistoryView: View {
                     }
                 }
             }
+            .alert("Delete Shift?", isPresented: $showingDeleteConfirmation, presenting: shiftToDelete) { shift in
+                Button("Cancel", role: .cancel) {
+                    shiftToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let shift = shiftToDelete {
+                        modelContext.delete(shift)
+                        try? modelContext.save()
+                    }
+                    shiftToDelete = nil
+                }
+            } message: { shift in
+                Text("\(shift.date.formattedWithWeekday())\n\(shift.startTime) – \(shift.endTime)")
+            }
         }
     }
 }
@@ -79,6 +100,7 @@ struct WeekGroupView: View {
     let weekStart: Date
     let shifts: [Shift]
     let settings: AppSettings?
+    let onDelete: (Shift) -> Void
     
     private var weekEnd: Date {
         Calendar.current.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
@@ -120,6 +142,13 @@ struct WeekGroupView: View {
             // Shifts in this week
             ForEach(shifts) { shift in
                 ShiftRowView(shift: shift)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            onDelete(shift)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
             }
         }
     }

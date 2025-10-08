@@ -17,6 +17,8 @@ struct HomeView: View {
     @State private var showingSettings = false
     @State private var shareItem: ShareItem?
     @State private var showingHistory = false
+    @State private var shiftToDelete: Shift?
+    @State private var showingDeleteConfirmation = false
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -74,6 +76,20 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingHistory) {
                 HistoryView()
+            }
+            .alert("Delete Shift?", isPresented: $showingDeleteConfirmation, presenting: shiftToDelete) { shift in
+                Button("Cancel", role: .cancel) {
+                    shiftToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let shift = shiftToDelete {
+                        modelContext.delete(shift)
+                        try? modelContext.save()
+                    }
+                    shiftToDelete = nil
+                }
+            } message: { shift in
+                Text("\(shift.date.formattedWithWeekday())\n\(shift.startTime) – \(shift.endTime)")
             }
         }
     }
@@ -313,9 +329,10 @@ struct HomeView: View {
             } else {
                 ForEach(weekShifts) { shift in
                     ShiftRowView(shift: shift)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                deleteShift(shift)
+                                shiftToDelete = shift
+                                showingDeleteConfirmation = true
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -413,11 +430,6 @@ struct HomeView: View {
         )
         
         modelContext.insert(shift)
-        try? modelContext.save()
-    }
-    
-    private func deleteShift(_ shift: Shift) {
-        modelContext.delete(shift)
         try? modelContext.save()
     }
     
