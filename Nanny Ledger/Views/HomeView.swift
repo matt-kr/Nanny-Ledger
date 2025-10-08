@@ -36,6 +36,9 @@ struct HomeView: View {
                     // Week Summary Header
                     weekSummaryCard
                     
+                    // Recipient Info
+                    recipientInfoSection
+                    
                     // PROMINENT Log Tonight Button
                     logTonightButton
                     
@@ -47,9 +50,6 @@ struct HomeView: View {
                     
                     // Shift List
                     shiftListSection
-                    
-                    // Recipient Info
-                    recipientInfoSection
                 }
                 .padding()
             }
@@ -130,6 +130,8 @@ struct HomeView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .multilineTextAlignment(.center)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(3)
                             .foregroundColor(.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
