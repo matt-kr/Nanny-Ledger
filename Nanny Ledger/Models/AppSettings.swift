@@ -18,6 +18,9 @@ final class AppSettings {
     var recipientName: String = "Maria"
     var recipientPhone: String = ""
     
+    // Color scheme: 0=system, 1=light, 2=dark
+    var colorScheme: Int = 0
+    
     // Default hours for each weekday (1=Sun...7=Sat)
     var sundayStart: String
     var sundayEnd: String
@@ -40,6 +43,7 @@ final class AppSettings {
         self.appendTotalsToNote = true
         self.recipientName = "Maria"
         self.recipientPhone = ""
+        self.colorScheme = 0 // System default
         
         // Default: Sun-Thu, Sat = 22:00-08:00, Fri = 21:00-07:00
         self.sundayStart = "22:00"

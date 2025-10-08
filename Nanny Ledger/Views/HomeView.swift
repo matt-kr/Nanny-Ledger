@@ -56,6 +56,7 @@ struct HomeView: View {
                 .padding()
             }
             .navigationTitle("Nanny Ledger")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -65,6 +66,7 @@ struct HomeView: View {
                     }
                 }
             }
+            .preferredColorScheme(colorSchemeForSetting(settings.colorScheme))
             .sheet(isPresented: $showingAddSheet) {
                 AddShiftView()
             }
@@ -461,6 +463,14 @@ struct HomeView: View {
         formatter.numberStyle = .currency
         formatter.locale = .current
         return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
+    }
+    
+    private func colorSchemeForSetting(_ setting: Int) -> ColorScheme? {
+        switch setting {
+        case 1: return .light
+        case 2: return .dark
+        default: return nil // System default
+        }
     }
 }
 

@@ -36,6 +36,14 @@ struct SettingsView: View {
                     }
                 }
                 
+                Section("Appearance") {
+                    Picker("Color Scheme", selection: $settings.colorScheme) {
+                        Text("System").tag(0)
+                        Text("Light").tag(1)
+                        Text("Dark").tag(2)
+                    }
+                }
+                
                 Section("Note Options") {
                     Toggle("Append Totals to Note", isOn: $settings.appendTotalsToNote)
                 }
