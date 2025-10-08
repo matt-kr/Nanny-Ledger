@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var shareItems: [Any] = []
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var isCreatingShare = false
     
     var body: some View {
         NavigationStack {
@@ -56,10 +57,15 @@ struct SettingsView: View {
                         shareData()
                     } label: {
                         HStack {
-                            Image(systemName: "person.2.fill")
-                                .foregroundColor(.blue)
+                            if isCreatingShare {
+                                ProgressView()
+                                    .padding(.trailing, 8)
+                            } else {
+                                Image(systemName: "person.2.fill")
+                                    .foregroundColor(.blue)
+                            }
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Share Ledger")
+                                Text(isCreatingShare ? "Creating Share..." : "Share Ledger")
                                     .foregroundColor(.primary)
                                 Text("Invite someone to collaborate")
                                     .font(.caption)
@@ -67,6 +73,7 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    .disabled(isCreatingShare)
                 } header: {
                     Text("Collaboration")
                 } footer: {
@@ -138,20 +145,28 @@ struct SettingsView: View {
     }
     
     private func shareData() {
+        isCreatingShare = true
+        
         Task {
             do {
                 // Get the model container
                 let container = modelContext.container
                 
-                // Create share using CloudKit
+                // Create share using CloudKit - wait for it to complete
                 let share = try await CloudKitSharingService.createShare(for: container)
                 
+                // Only show the sheet after share is created
                 await MainActor.run {
                     shareItems = [share]
-                    showingShareSheet = true
+                    isCreatingShare = false
+                    // Small delay to ensure sheet presentation happens cleanly
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        showingShareSheet = true
+                    }
                 }
             } catch {
                 await MainActor.run {
+                    isCreatingShare = false
                     errorMessage = "Failed to create share: \(error.localizedDescription)"
                     showingError = true
                 }
