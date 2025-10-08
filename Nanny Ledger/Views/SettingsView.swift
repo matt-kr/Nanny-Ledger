@@ -164,6 +164,7 @@ struct SettingsView: View {
 // CloudKit Share Sheet wrapper
 struct CloudKitShareSheet: UIViewControllerRepresentable {
     let items: [Any]
+    @Environment(\.dismiss) private var dismiss
     
     func makeUIViewController(context: Context) -> UICloudSharingController {
         guard let share = items.first as? CKShare else {
@@ -175,6 +176,7 @@ struct CloudKitShareSheet: UIViewControllerRepresentable {
         let controller = UICloudSharingController(share: share, container: CKContainer.default())
         controller.availablePermissions = [.allowReadWrite, .allowPrivate]
         controller.delegate = context.coordinator
+        controller.modalPresentationStyle = .formSheet
         
         return controller
     }
@@ -182,16 +184,30 @@ struct CloudKitShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(parent: self)
     }
     
     class Coordinator: NSObject, UICloudSharingControllerDelegate {
+        let parent: CloudKitShareSheet
+        
+        init(parent: CloudKitShareSheet) {
+            self.parent = parent
+        }
+        
         func cloudSharingController(_ csc: UICloudSharingController, failedToSaveShareWithError error: Error) {
             print("Failed to save share: \(error)")
         }
         
         func itemTitle(for csc: UICloudSharingController) -> String? {
             "Nanny Ledger"
+        }
+        
+        func cloudSharingControllerDidSaveShare(_ csc: UICloudSharingController) {
+            print("Share saved successfully")
+        }
+        
+        func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
+            print("Stopped sharing")
         }
     }
 }

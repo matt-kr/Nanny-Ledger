@@ -37,6 +37,9 @@ struct CloudKitSharingService {
         share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
         share.publicPermission = .none
         
+        // Don't set minimum version requirements to avoid compatibility issues
+        // share[CKShare.SystemFieldKey.thumbnailImageData] = nil
+        
         // Save both the root record and share in a single operation
         let operation = CKModifyRecordsOperation(recordsToSave: [rootRecord, share], recordIDsToDelete: nil)
         operation.savePolicy = .changedKeys
