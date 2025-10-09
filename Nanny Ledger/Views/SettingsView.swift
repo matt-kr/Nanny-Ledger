@@ -14,10 +14,12 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var settings: AppSettings
     
-    @State private var cloudKitShare: CKShare?
+        @State private var showingShareSheet = false
+    @State private var shareController: UICloudSharingController?
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isCreatingShare = false
+    @State private var activeShare: CKShare?
     
     var body: some View {
         NavigationStack {
@@ -135,11 +137,6 @@ struct SettingsView: View {
             } message: {
                 Text(errorMessage)
             }
-            .onChange(of: cloudKitShare) { oldValue, newValue in
-                if let share = newValue {
-                    presentCloudKitShareController(share: share)
-                }
-            }
         }
     }
     
@@ -148,41 +145,112 @@ struct SettingsView: View {
         
         Task {
             do {
-                // Get the model container
-                let container = modelContext.container
+                let container = CloudKitSharingService.getContainer()
+                let privateDatabase = container.privateCloudDatabase
                 
-                // Create share using CloudKit
-                let share = try await CloudKitSharingService.createShare(for: container)
+                // Create a custom zone for sharing
+                let zoneID = CKRecordZone.ID(zoneName: "NannyLedgerSharedZone", ownerName: CKCurrentUserDefaultName)
+                let zone = CKRecordZone(zoneID: zoneID)
                 
-                // Small delay to ensure share URL is fully available
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                
-                // Present the share sheet
-                await MainActor.run {
-                    cloudKitShare = share
-                    isCreatingShare = false
+                do {
+                    _ = try await privateDatabase.save(zone)
+                    print("✅ Zone created")
+                } catch let error as CKError {
+                    // Zone might already exist - that's okay
+                    print("✅ Zone already exists or error: \(error.code)")
                 }
+                
+                // Create a root record for the share
+                let rootRecordID = CKRecord.ID(recordName: "SharedLedgerRoot", zoneID: zoneID)
+                let rootRecord = CKRecord(recordType: "NannyLedgerData", recordID: rootRecordID)
+                rootRecord["title"] = "Nanny Ledger" as CKRecordValue
+                rootRecord["createdAt"] = Date() as CKRecordValue
+                
+                // Create the share
+                let share = CKShare(rootRecord: rootRecord)
+                share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
+                share.publicPermission = .none
+                
+                // Save both records using the modern API
+                print("🔵 Saving root record and share to CloudKit...")
+                let (saveResults, _) = try await privateDatabase.modifyRecords(
+                    saving: [rootRecord, share],
+                    deleting: []
+                )
+                
+                print("🔵 Save operation completed. Checking results...")
+                print("🔵 Number of save results: \(saveResults.count)")
+                
+                // Extract the saved share from the results
+                var savedShare: CKShare?
+                var saveErrors: [Error] = []
+                
+                for (recordID, result) in saveResults {
+                    print("🔵 Processing result for record: \(recordID.recordName)")
+                    switch result {
+                    case .success(let record):
+                        print("✅ Successfully saved record: \(recordID.recordName), type: \(type(of: record))")
+                        if let ckShare = record as? CKShare {
+                            print("✅ Found the share!")
+                            savedShare = ckShare
+                        }
+                    case .failure(let error):
+                        print("❌ Failed to save record \(recordID): \(error.localizedDescription)")
+                        saveErrors.append(error)
+                    }
+                }
+                
+                // Check if we had any errors
+                if !saveErrors.isEmpty {
+                    let errorMsg = saveErrors.map { $0.localizedDescription }.joined(separator: "\n")
+                    throw NSError(domain: "SettingsView", code: -1,
+                                userInfo: [NSLocalizedDescriptionKey: "Errors saving records:\n\(errorMsg)"])
+                }
+                
+                guard let finalShare = savedShare else {
+                    print("❌ Share was not found in save results")
+                    print("❌ Total results: \(saveResults.count)")
+                    print("❌ Results were: \(saveResults.keys.map { $0.recordName })")
+                    throw NSError(domain: "SettingsView", code: -1,
+                                userInfo: [NSLocalizedDescriptionKey: "Share not in results. Saved \(saveResults.count) records. Check Xcode console for details."])
+                }
+                
+                print("✅ Share created successfully")
+                
+                // Present the sharing controller with the existing share
+                await MainActor.run {
+                    self.activeShare = finalShare
+                    self.presentCloudKitShareController(share: finalShare, container: container)
+                    self.isCreatingShare = false
+                }
+                
             } catch {
                 await MainActor.run {
                     isCreatingShare = false
+                    print("❌❌❌ FULL ERROR: \(error)")
+                    print("❌❌❌ ERROR DESCRIPTION: \(error.localizedDescription)")
+                    if let ckError = error as? CKError {
+                        print("❌❌❌ CK ERROR CODE: \(ckError.code)")
+                        print("❌❌❌ CK ERROR: \(ckError)")
+                    }
                     errorMessage = "Failed to create share: \(error.localizedDescription)"
                     showingError = true
                 }
-                print("Error sharing: \(error)")
+                print("❌ Error creating share: \(error)")
             }
         }
     }
     
-    private func presentCloudKitShareController(share: CKShare) {
+    private func presentCloudKitShareController(share: CKShare, container: CKContainer) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootViewController = windowScene.windows.first?.rootViewController else {
             print("❌ Could not find root view controller")
+            errorMessage = "Could not present sharing interface"
+            showingError = true
             return
         }
         
-        let containerIdentifier = "iCloud.com.mattkrussow.Nanny-Ledger"
-        let container = CKContainer(identifier: containerIdentifier)
-        
+        // Create controller with existing share (not deprecated)
         let shareController = UICloudSharingController(share: share, container: container)
         shareController.availablePermissions = [.allowReadWrite, .allowPrivate]
         shareController.delegate = ShareDelegate.shared
@@ -193,10 +261,7 @@ struct SettingsView: View {
             topController = presented
         }
         
-        topController.present(shareController, animated: true) {
-            // Reset the cloudKitShare after presentation
-            self.cloudKitShare = nil
-        }
+        topController.present(shareController, animated: true)
     }
 }
 
