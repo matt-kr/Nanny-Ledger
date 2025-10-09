@@ -130,13 +130,15 @@ struct SettingsView: View {
                     }
                 }
             }
-            .sheet(item: $cloudKitShare) { share in
-                CloudKitShareSheet(share: share)
-            }
             .alert("Sharing Error", isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
+            }
+            .onChange(of: cloudKitShare) { oldValue, newValue in
+                if let share = newValue {
+                    presentCloudKitShareController(share: share)
+                }
             }
         }
     }
@@ -167,59 +169,52 @@ struct SettingsView: View {
             }
         }
     }
-}
-
-// Make CKShare identifiable for SwiftUI sheet presentation
-extension CKShare: @retroactive Identifiable {
-    public var id: String {
-        recordID.recordName
-    }
-}
-
-// CloudKit Share Sheet wrapper
-struct CloudKitShareSheet: UIViewControllerRepresentable {
-    let share: CKShare
-    @Environment(\.dismiss) private var dismiss
     
-    func makeUIViewController(context: Context) -> UICloudSharingController {
+    private func presentCloudKitShareController(share: CKShare) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            print("❌ Could not find root view controller")
+            return
+        }
+        
         let containerIdentifier = "iCloud.com.mattkrussow.Nanny-Ledger"
         let container = CKContainer(identifier: containerIdentifier)
         
-        let controller = UICloudSharingController(share: share, container: container)
-        controller.availablePermissions = [.allowReadWrite, .allowPrivate]
-        controller.delegate = context.coordinator
+        let shareController = UICloudSharingController(share: share, container: container)
+        shareController.availablePermissions = [.allowReadWrite, .allowPrivate]
+        shareController.delegate = ShareDelegate.shared
         
-        return controller
+        // Find the topmost presented view controller
+        var topController = rootViewController
+        while let presented = topController.presentedViewController {
+            topController = presented
+        }
+        
+        topController.present(shareController, animated: true) {
+            // Reset the cloudKitShare after presentation
+            self.cloudKitShare = nil
+        }
+    }
+}
+
+// Shared delegate for UICloudSharingController
+class ShareDelegate: NSObject, UICloudSharingControllerDelegate {
+    static let shared = ShareDelegate()
+    
+    func cloudSharingController(_ csc: UICloudSharingController, failedToSaveShareWithError error: Error) {
+        print("❌ Failed to save share: \(error)")
     }
     
-    func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
+    func itemTitle(for csc: UICloudSharingController) -> String? {
+        "Nanny Ledger"
     }
     
-    class Coordinator: NSObject, UICloudSharingControllerDelegate {
-        let parent: CloudKitShareSheet
-        
-        init(parent: CloudKitShareSheet) {
-            self.parent = parent
-        }
-        
-        func cloudSharingController(_ csc: UICloudSharingController, failedToSaveShareWithError error: Error) {
-            print("Failed to save share: \(error)")
-        }
-        
-        func itemTitle(for csc: UICloudSharingController) -> String? {
-            "Nanny Ledger"
-        }
-        
-        func cloudSharingControllerDidSaveShare(_ csc: UICloudSharingController) {
-            print("Share saved successfully")
-        }
-        
-        func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
-            print("Stopped sharing")
-        }
+    func cloudSharingControllerDidSaveShare(_ csc: UICloudSharingController) {
+        print("✅ Share saved via controller")
+    }
+    
+    func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
+        print("🛑 Stopped sharing")
     }
 }
 
