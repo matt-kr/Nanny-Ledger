@@ -154,6 +154,9 @@ struct SettingsView: View {
                 // Create share using CloudKit
                 let share = try await CloudKitSharingService.createShare(for: container)
                 
+                // Small delay to ensure share URL is fully available
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                
                 // Present the share sheet
                 await MainActor.run {
                     cloudKitShare = share

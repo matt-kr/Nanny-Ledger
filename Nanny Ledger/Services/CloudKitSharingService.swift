@@ -64,9 +64,17 @@ struct CloudKitSharingService {
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success():
-                    print("✅ Share saved successfully!")
-                    print("📤 Share URL: \(share.url?.absoluteString ?? "none")")
-                    continuation.resume(returning: share)
+                    // Verify the share has a URL before returning
+                    if share.url != nil {
+                        print("✅ Share saved successfully!")
+                        print("📤 Share URL: \(share.url?.absoluteString ?? "none")")
+                        continuation.resume(returning: share)
+                    } else {
+                        print("❌ Share saved but has no URL yet")
+                        let error = NSError(domain: "CloudKitSharingService", code: -1, 
+                                          userInfo: [NSLocalizedDescriptionKey: "Share URL not available"])
+                        continuation.resume(throwing: error)
+                    }
                 case .failure(let error):
                     print("❌ Failed to save share: \(error)")
                     continuation.resume(throwing: error)
