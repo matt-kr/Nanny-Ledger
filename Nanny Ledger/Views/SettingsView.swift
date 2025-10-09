@@ -14,8 +14,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var settings: AppSettings
     
-    @State private var showingShareSheet = false
-    @State private var shareItems: [Any] = []
+    @State private var cloudKitShare: CKShare?
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isCreatingShare = false
@@ -131,10 +130,8 @@ struct SettingsView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingShareSheet) {
-                if !shareItems.isEmpty {
-                    CloudKitShareSheet(items: shareItems)
-                }
+            .sheet(item: $cloudKitShare) { share in
+                CloudKitShareSheet(share: share)
             }
             .alert("Sharing Error", isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
@@ -152,17 +149,13 @@ struct SettingsView: View {
                 // Get the model container
                 let container = modelContext.container
                 
-                // Create share using CloudKit - wait for it to complete
+                // Create share using CloudKit
                 let share = try await CloudKitSharingService.createShare(for: container)
                 
-                // Only show the sheet after share is created
+                // Present the share sheet
                 await MainActor.run {
-                    shareItems = [share]
+                    cloudKitShare = share
                     isCreatingShare = false
-                    // Small delay to ensure sheet presentation happens cleanly
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        showingShareSheet = true
-                    }
                 }
             } catch {
                 await MainActor.run {
@@ -176,22 +169,25 @@ struct SettingsView: View {
     }
 }
 
+// Make CKShare identifiable for SwiftUI sheet presentation
+extension CKShare: @retroactive Identifiable {
+    public var id: String {
+        recordID.recordName
+    }
+}
+
 // CloudKit Share Sheet wrapper
 struct CloudKitShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
+    let share: CKShare
     @Environment(\.dismiss) private var dismiss
     
     func makeUIViewController(context: Context) -> UICloudSharingController {
-        guard let share = items.first as? CKShare else {
-            // Fallback - create a dummy controller
-            let dummyShare = CKShare(rootRecord: CKRecord(recordType: "Fallback"))
-            return UICloudSharingController(share: dummyShare, container: CKContainer.default())
-        }
+        let containerIdentifier = "iCloud.com.mattkrussow.Nanny-Ledger"
+        let container = CKContainer(identifier: containerIdentifier)
         
-        let controller = UICloudSharingController(share: share, container: CKContainer.default())
+        let controller = UICloudSharingController(share: share, container: container)
         controller.availablePermissions = [.allowReadWrite, .allowPrivate]
         controller.delegate = context.coordinator
-        controller.modalPresentationStyle = .formSheet
         
         return controller
     }
