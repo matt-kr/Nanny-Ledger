@@ -13,17 +13,28 @@ import CloudKit
 struct CloudKitSharingService {
     
     static func createShare(for container: ModelContainer) async throws -> CKShare {
-        let ckContainer = CKContainer.default()
+        // Use the specific container identifier instead of default
+        let containerIdentifier = "iCloud.com.mattkrussow.Nanny-Ledger"
+        let ckContainer = CKContainer(identifier: containerIdentifier)
         let privateDatabase = ckContainer.privateCloudDatabase
+        
+        print("🔵 Using CloudKit container: \(containerIdentifier)")
         
         // Create a root record zone if it doesn't exist
         let zoneID = CKRecordZone.ID(zoneName: "NannyLedgerZone", ownerName: CKCurrentUserDefaultName)
         let zone = CKRecordZone(zoneID: zoneID)
         
+        print("🔵 Creating/verifying zone: \(zoneID.zoneName)")
+        
         do {
             try await privateDatabase.save(zone)
+            print("✅ Zone created/verified successfully")
         } catch let error as CKError where error.code == .serverRecordChanged {
             // Zone already exists, that's fine
+            print("✅ Zone already exists")
+        } catch {
+            print("❌ Zone creation failed: \(error)")
+            throw error
         }
         
         // Create a root record for the share
@@ -31,6 +42,8 @@ struct CloudKitSharingService {
         let rootRecord = CKRecord(recordType: "NannyLedgerData", recordID: rootRecordID)
         rootRecord["title"] = "Nanny Ledger" as CKRecordValue
         rootRecord["createdAt"] = Date() as CKRecordValue
+        
+        print("🔵 Creating share with root record...")
         
         // Create the share
         let share = CKShare(rootRecord: rootRecord)
@@ -45,12 +58,17 @@ struct CloudKitSharingService {
         operation.savePolicy = .changedKeys
         operation.qualityOfService = .userInitiated
         
+        print("🔵 Saving share to CloudKit...")
+        
         return try await withCheckedThrowingContinuation { continuation in
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success():
+                    print("✅ Share saved successfully!")
+                    print("📤 Share URL: \(share.url?.absoluteString ?? "none")")
                     continuation.resume(returning: share)
                 case .failure(let error):
+                    print("❌ Failed to save share: \(error)")
                     continuation.resume(throwing: error)
                 }
             }
