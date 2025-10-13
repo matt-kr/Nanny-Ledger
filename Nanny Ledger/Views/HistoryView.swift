@@ -120,10 +120,14 @@ struct WeekGroupView: View {
         return formatter
     }
     
+    private var zelleNote: String {
+        NoteGenerator.generateZelleNote(shifts: shifts)
+    }
+    
     var body: some View {
         VStack(spacing: 12) {
             // Week header
-            HStack {
+            VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Week of \(dateFormatter.string(from: weekStart)) - \(dateFormatter.string(from: weekEnd))")
                         .font(.headline)
@@ -133,8 +137,35 @@ struct WeekGroupView: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                Spacer()
+                // Zelle Payment Note
+                if !shifts.isEmpty {
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    VStack(spacing: 4) {
+                        Text("Zelle Payment Note")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Button {
+                            UIPasteboard.general.string = zelleNote
+                        } label: {
+                            Text(zelleNote)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .multilineTextAlignment(.center)
+                                .minimumScaleFactor(0.5)
+                                .lineLimit(3)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.tertiarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
