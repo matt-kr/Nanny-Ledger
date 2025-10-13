@@ -63,14 +63,11 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Caregiver Picker
-                    caregiverPickerSection
-                    
                     // Week Summary Header
                     weekSummaryCard
                     
-                    // Recipient Info
-                    recipientInfoSection
+                    // Caregiver Info/Picker
+                    caregiverInfoSection
                     
                     // PROMINENT Log Tonight Button
                     logTonightButton
@@ -86,6 +83,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
+            .id(currentCaregiver.id) // Force refresh when caregiver changes
             .navigationTitle("Nanny Ledger")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -130,52 +128,60 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Caregiver Picker
+    // MARK: - Caregiver Info Section
     
-    private var caregiverPickerSection: some View {
-        Menu {
-            ForEach(allCaregivers, id: \.id) { caregiver in
-                Button {
-                    selectedCaregiver = caregiver
-                    settings.lastSelectedCaregiverId = caregiver.id
-                    try? modelContext.save()
-                } label: {
-                    HStack {
-                        Text(caregiver.displayName)
-                        if caregiver.id == currentCaregiver.id {
-                            Image(systemName: "checkmark")
+    private var caregiverInfoSection: some View {
+        VStack(spacing: 0) {
+            // Caregiver Picker Menu
+            Menu {
+                ForEach(allCaregivers, id: \.id) { caregiver in
+                    Button {
+                        selectedCaregiver = caregiver
+                        settings.lastSelectedCaregiverId = caregiver.id
+                        try? modelContext.save()
+                    } label: {
+                        HStack {
+                            Text(caregiver.displayName)
+                            if caregiver.id == currentCaregiver.id {
+                                Image(systemName: "checkmark")
+                            }
                         }
                     }
                 }
-            }
-            
-            Divider()
-            
-            Button {
-                showingSettings = true
+                
+                Divider()
+                
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label("Manage Caregivers", systemImage: "person.badge.plus")
+                }
             } label: {
-                Label("Manage Caregivers", systemImage: "person.badge.plus")
-            }
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Viewing")
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(currentCaregiver.name)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        
+                        if !currentCaregiver.zelleInfo.isEmpty {
+                            Text(currentCaregiver.zelleInfo)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(currentCaregiver.displayName)
-                        .font(.headline)
                 }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.down")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .foregroundColor(.primary)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
     
@@ -432,40 +438,6 @@ struct HomeView: View {
     
     // MARK: - Recipient Info Section
     
-    private var recipientInfoSection: some View {
-        VStack(spacing: 8) {
-            Text("Payment To")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(currentCaregiver.name)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    
-                    if !currentCaregiver.zelleInfo.isEmpty {
-                        Text(currentCaregiver.zelleInfo)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "pencil.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                }
-            }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
     
     // MARK: - Computed Properties
     
@@ -503,6 +475,9 @@ struct HomeView: View {
             settings.defaultTimes(for: today) : 
             (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
         
+        print("🔵 Logging shift with times: \(defaults.start) - \(defaults.end)")
+        print("🔵 Caregiver: \(currentCaregiver.name), Rate: \(currentCaregiver.hourlyRate)")
+        
         let shift = Shift(
             date: today,
             startTime: defaults.start,
@@ -510,8 +485,13 @@ struct HomeView: View {
             caregiver: currentCaregiver
         )
         
+        print("🔵 Created shift - Start: \(shift.startTime), End: \(shift.endTime)")
+        print("🔵 Shift duration: \(shift.durationHours)h, rounded: \(shift.roundedHours)h")
+        
         modelContext.insert(shift)
         try? modelContext.save()
+        
+        print("✅ Shift saved!")
     }
     
     private func logLastNight() {

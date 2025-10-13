@@ -143,17 +143,29 @@ struct CaregiverAddView: View {
                     HStack {
                         Text("Start Time")
                         Spacer()
-                        TextField("HH:mm", text: $defaultStartTime)
+                        TextField("22:00", text: $defaultStartTime)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numbersAndPunctuation)
+                            .onChange(of: defaultStartTime) { oldValue, newValue in
+                                // Limit to 5 characters (HH:mm format)
+                                if newValue.count > 5 {
+                                    defaultStartTime = String(newValue.prefix(5))
+                                }
+                            }
                     }
                     
                     HStack {
                         Text("End Time")
                         Spacer()
-                        TextField("HH:mm", text: $defaultEndTime)
+                        TextField("08:00", text: $defaultEndTime)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numbersAndPunctuation)
+                            .onChange(of: defaultEndTime) { oldValue, newValue in
+                                // Limit to 5 characters (HH:mm format)
+                                if newValue.count > 5 {
+                                    defaultEndTime = String(newValue.prefix(5))
+                                }
+                            }
                     }
                 }
             }
@@ -224,17 +236,29 @@ struct CaregiverEditView: View {
                     HStack {
                         Text("Start Time")
                         Spacer()
-                        TextField("HH:mm", text: $caregiver.defaultStartTime)
+                        TextField("22:00", text: $caregiver.defaultStartTime)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numbersAndPunctuation)
+                            .onChange(of: caregiver.defaultStartTime) { oldValue, newValue in
+                                // Limit to 5 characters (HH:mm format)
+                                if newValue.count > 5 {
+                                    caregiver.defaultStartTime = String(newValue.prefix(5))
+                                }
+                            }
                     }
                     
                     HStack {
                         Text("End Time")
                         Spacer()
-                        TextField("HH:mm", text: $caregiver.defaultEndTime)
+                        TextField("08:00", text: $caregiver.defaultEndTime)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numbersAndPunctuation)
+                            .onChange(of: caregiver.defaultEndTime) { oldValue, newValue in
+                                // Limit to 5 characters (HH:mm format)
+                                if newValue.count > 5 {
+                                    caregiver.defaultEndTime = String(newValue.prefix(5))
+                                }
+                            }
                     }
                 }
             }
