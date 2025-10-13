@@ -55,6 +55,6 @@ struct NightNannyLoggerApp: App {
         WindowGroup {
             MainContentView()
         }
-        .modelContainer(for: [Shift.self])
+        .modelContainer(for: [Shift.self, Caregiver.self, AppSettings.self])
     }
 }

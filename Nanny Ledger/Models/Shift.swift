@@ -15,11 +15,13 @@ final class Shift {
     var endTime: String = "08:00"   // HH:mm format (e.g., "08:00")
     var createdAt: Date = Date()
     var createdBy: String? // Optional: user identifier
+    var caregiver: Caregiver?
     
-    init(date: Date, startTime: String, endTime: String, createdBy: String? = nil) {
+    init(date: Date, startTime: String, endTime: String, caregiver: Caregiver? = nil, createdBy: String? = nil) {
         self.date = Calendar.current.startOfDay(for: date)
         self.startTime = startTime
         self.endTime = endTime
+        self.caregiver = caregiver
         self.createdAt = Date()
         self.createdBy = createdBy
     }

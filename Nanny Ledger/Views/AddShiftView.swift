@@ -12,11 +12,19 @@ struct AddShiftView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
+    let defaultCaregiver: Caregiver
+    
     @State private var selectedDate = Date()
     @State private var startTime = "22:00"
     @State private var endTime = "08:00"
     @State private var showingError = false
     @State private var errorMessage = ""
+    
+    init(defaultCaregiver: Caregiver) {
+        self.defaultCaregiver = defaultCaregiver
+        _startTime = State(initialValue: defaultCaregiver.defaultStartTime)
+        _endTime = State(initialValue: defaultCaregiver.defaultEndTime)
+    }
     
     var body: some View {
         NavigationStack {
@@ -132,7 +140,8 @@ struct AddShiftView: View {
         let shift = Shift(
             date: selectedDate,
             startTime: startTime,
-            endTime: endTime
+            endTime: endTime,
+            caregiver: defaultCaregiver
         )
         
         modelContext.insert(shift)
@@ -142,6 +151,6 @@ struct AddShiftView: View {
 }
 
 #Preview {
-    AddShiftView()
-        .modelContainer(for: [Shift.self])
+    AddShiftView(defaultCaregiver: Caregiver(name: "Maria", role: "Night Nanny"))
+        .modelContainer(for: [Shift.self, Caregiver.self])
 }

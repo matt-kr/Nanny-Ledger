@@ -13,35 +13,55 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var settings: AppSettings
+    @Query(sort: \Caregiver.createdDate) private var caregivers: [Caregiver]
     
-        @State private var showingShareSheet = false
+    @State private var showingShareSheet = false
     @State private var shareController: UICloudSharingController?
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isCreatingShare = false
     @State private var activeShare: CKShare?
+    @State private var showingCaregiversManagement = false
     
     var body: some View {
         NavigationStack {
             Form {
-                Section("Payment Recipient") {
-                    TextField("Name", text: $settings.recipientName)
-                    TextField("Phone Number", text: $settings.recipientPhone)
-                        .keyboardType(.phonePad)
+                Section("Caregivers") {
+                    ForEach(caregivers) { caregiver in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(caregiver.name)
+                                    .font(.body)
+                                if !caregiver.role.isEmpty && caregiver.role != caregiver.name {
+                                    Text(caregiver.role)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Text(formatCurrency(caregiver.hourlyRate))
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            showingCaregiversManagement = true
+                        }
+                    }
+                    
+                    Button {
+                        showingCaregiversManagement = true
+                    } label: {
+                        Label("Manage Caregivers", systemImage: "person.badge.plus")
+                    }
                 }
                 
                 Section("General") {
                     Picker("Week Starts On", selection: $settings.weekStartDay) {
                         Text("Sunday").tag(1)
                         Text("Monday").tag(2)
-                    }
-                    
-                    HStack {
-                        Text("Hourly Rate")
-                        Spacer()
-                        TextField("Rate", value: $settings.hourlyRate, format: .currency(code: "USD"))
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.decimalPad)
                     }
                 }
                 
@@ -132,12 +152,22 @@ struct SettingsView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingCaregiversManagement) {
+                CaregiversManagementView()
+            }
             .alert("Sharing Error", isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
             }
         }
+    }
+    
+    private func formatCurrency(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = .current
+        return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
     }
     
     private func shareData() {

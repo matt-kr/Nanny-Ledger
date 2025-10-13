@@ -21,6 +21,9 @@ final class AppSettings {
     // Color scheme: 0=system, 1=light, 2=dark
     var colorScheme: Int = 0
     
+    // Last selected caregiver ID
+    var lastSelectedCaregiverId: UUID?
+    
     // Default hours for each weekday (1=Sun...7=Sat)
     var sundayStart: String = "22:00"
     var sundayEnd: String = "08:00"

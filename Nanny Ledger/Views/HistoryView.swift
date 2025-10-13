@@ -14,6 +14,8 @@ struct HistoryView: View {
     @Query(sort: \Shift.date, order: .reverse) private var allShifts: [Shift]
     @Query private var settingsQuery: [AppSettings]
     
+    let caregiver: Caregiver
+    
     @State private var shiftToDelete: Shift?
     @State private var showingDeleteConfirmation = false
     
@@ -24,7 +26,9 @@ struct HistoryView: View {
     private var historicalShifts: [Shift] {
         guard let settings = settings else { return [] }
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
-        return allShifts.filter { $0.date < weekStart }
+        return allShifts.filter { 
+            $0.date < weekStart && $0.caregiver?.id == caregiver.id
+        }
     }
     
     private var groupedShifts: [(weekStart: Date, shifts: [Shift])] {
@@ -111,7 +115,9 @@ struct WeekGroupView: View {
     }
     
     private var totalAmount: Double {
-        totalHours * (settings?.hourlyRate ?? 35.0)
+        // Use caregiver's rate if available, otherwise fall back to settings
+        let rate = shifts.first?.caregiver?.hourlyRate ?? settings?.hourlyRate ?? 35.0
+        return totalHours * rate
     }
     
     private var dateFormatter: DateFormatter {
@@ -188,6 +194,6 @@ struct WeekGroupView: View {
 }
 
 #Preview {
-    HistoryView()
-        .modelContainer(for: [Shift.self, AppSettings.self])
+    HistoryView(caregiver: Caregiver(name: "Maria", role: "Night Nanny"))
+        .modelContainer(for: [Shift.self, AppSettings.self, Caregiver.self])
 }

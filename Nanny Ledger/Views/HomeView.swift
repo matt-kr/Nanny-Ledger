@@ -12,6 +12,7 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Shift.date, order: .reverse) private var allShifts: [Shift]
     @Query private var settingsQuery: [AppSettings]
+    @Query(sort: \Caregiver.createdDate) private var allCaregivers: [Caregiver]
     
     @State private var showingAddSheet = false
     @State private var showingSettings = false
@@ -20,6 +21,7 @@ struct HomeView: View {
     @State private var shiftToDelete: Shift?
     @State private var showingDeleteConfirmation = false
     @State private var shiftToEdit: Shift?
+    @State private var selectedCaregiver: Caregiver?
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -32,10 +34,38 @@ struct HomeView: View {
         }
     }
     
+    private var currentCaregiver: Caregiver {
+        // Ensure default caregiver exists and get it
+        let caregiver = CaregiverMigration.ensureDefaultCaregiver(modelContext: modelContext, settings: settings)
+        
+        // Use selected caregiver if set, otherwise use last selected or default
+        if let selected = selectedCaregiver {
+            return selected
+        }
+        
+        // Try to restore last selected caregiver
+        if let lastId = settings.lastSelectedCaregiverId,
+           let lastCaregiver = allCaregivers.first(where: { $0.id == lastId }) {
+            DispatchQueue.main.async {
+                selectedCaregiver = lastCaregiver
+            }
+            return lastCaregiver
+        }
+        
+        // Default to first caregiver
+        DispatchQueue.main.async {
+            selectedCaregiver = caregiver
+        }
+        return caregiver
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Caregiver Picker
+                    caregiverPickerSection
+                    
                     // Week Summary Header
                     weekSummaryCard
                     
@@ -69,7 +99,7 @@ struct HomeView: View {
             }
             .preferredColorScheme(colorSchemeForSetting(settings.colorScheme))
             .sheet(isPresented: $showingAddSheet) {
-                AddShiftView()
+                AddShiftView(defaultCaregiver: currentCaregiver)
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView(settings: settings)
@@ -78,7 +108,7 @@ struct HomeView: View {
                 ShareSheet(items: [item.text])
             }
             .sheet(isPresented: $showingHistory) {
-                HistoryView()
+                HistoryView(caregiver: currentCaregiver)
             }
             .sheet(item: $shiftToEdit) { shift in
                 EditShiftView(shift: shift)
@@ -97,6 +127,55 @@ struct HomeView: View {
             } message: { shift in
                 Text("\(shift.date.formattedWithWeekday())\n\(shift.startTime) – \(shift.endTime)")
             }
+        }
+    }
+    
+    // MARK: - Caregiver Picker
+    
+    private var caregiverPickerSection: some View {
+        Menu {
+            ForEach(allCaregivers, id: \.id) { caregiver in
+                Button {
+                    selectedCaregiver = caregiver
+                    settings.lastSelectedCaregiverId = caregiver.id
+                    try? modelContext.save()
+                } label: {
+                    HStack {
+                        Text(caregiver.displayName)
+                        if caregiver.id == currentCaregiver.id {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+            
+            Divider()
+            
+            Button {
+                showingSettings = true
+            } label: {
+                Label("Manage Caregivers", systemImage: "person.badge.plus")
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Viewing")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(currentCaregiver.displayName)
+                        .font(.headline)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
     
@@ -140,7 +219,7 @@ struct HomeView: View {
                 }
             }
             
-            Text("Rate: \(formatCurrency(settings.hourlyRate))/hour")
+            Text("Rate: \(formatCurrency(currentCaregiver.hourlyRate))/hour")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             
@@ -361,12 +440,12 @@ struct HomeView: View {
             
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(settings.recipientName.isEmpty ? "Tap to add name" : settings.recipientName)
+                    Text(currentCaregiver.name)
                         .font(.title3)
                         .fontWeight(.semibold)
                     
-                    if !settings.recipientPhone.isEmpty {
-                        Text(settings.recipientPhone)
+                    if !currentCaregiver.zelleInfo.isEmpty {
+                        Text(currentCaregiver.zelleInfo)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -392,12 +471,16 @@ struct HomeView: View {
     
     private var weekShifts: [Shift] {
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
-        return allShifts.filter { $0.date >= weekStart }
+        return allShifts.filter { 
+            $0.date >= weekStart && $0.caregiver?.id == currentCaregiver.id
+        }
     }
     
     private var hasHistoricalShifts: Bool {
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
-        return allShifts.contains { $0.date < weekStart }
+        return allShifts.contains { 
+            $0.date < weekStart && $0.caregiver?.id == currentCaregiver.id
+        }
     }
     
     private var weekHours: Double {
@@ -405,7 +488,7 @@ struct HomeView: View {
     }
     
     private var weekTotal: Double {
-        weekHours * settings.hourlyRate
+        weekHours * currentCaregiver.hourlyRate
     }
     
     private var zelleNote: String {
@@ -416,12 +499,15 @@ struct HomeView: View {
     
     private func logTonight() {
         let today = Date()
-        let defaults = settings.defaultTimes(for: today)
+        let defaults = currentCaregiver.defaultStartTime.isEmpty ? 
+            settings.defaultTimes(for: today) : 
+            (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
         
         let shift = Shift(
             date: today,
             startTime: defaults.start,
-            endTime: defaults.end
+            endTime: defaults.end,
+            caregiver: currentCaregiver
         )
         
         modelContext.insert(shift)
@@ -430,12 +516,15 @@ struct HomeView: View {
     
     private func logLastNight() {
         let yesterday = Date().addingDays(-1)
-        let defaults = settings.defaultTimes(for: yesterday)
+        let defaults = currentCaregiver.defaultStartTime.isEmpty ? 
+            settings.defaultTimes(for: yesterday) : 
+            (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
         
         let shift = Shift(
             date: yesterday,
             startTime: defaults.start,
-            endTime: defaults.end
+            endTime: defaults.end,
+            caregiver: currentCaregiver
         )
         
         modelContext.insert(shift)
@@ -445,7 +534,7 @@ struct HomeView: View {
     private func copyWeekNote() {
         let note = NoteGenerator.generateWeekNote(
             shifts: weekShifts,
-            rate: settings.hourlyRate,
+            rate: currentCaregiver.hourlyRate,
             appendTotals: settings.appendTotalsToNote
         )
         UIPasteboard.general.string = note
@@ -454,7 +543,7 @@ struct HomeView: View {
     private func shareWeekNote() {
         let note = NoteGenerator.generateWeekNote(
             shifts: weekShifts,
-            rate: settings.hourlyRate,
+            rate: currentCaregiver.hourlyRate,
             appendTotals: settings.appendTotalsToNote
         )
         shareItem = ShareItem(text: note)
