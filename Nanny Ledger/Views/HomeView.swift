@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var selectedCaregiver: Caregiver?
     @State private var showingDuplicateAlert = false
     @State private var duplicateAlertMessage = ""
+    @State private var showingReceiptForm = false
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -128,10 +129,13 @@ struct HomeView: View {
                 SettingsView(settings: settings)
             }
             .sheet(item: $shareItem) { item in
-                ShareSheet(items: [item.text])
+                ShareSheet(items: item.activityItems)
             }
             .sheet(isPresented: $showingHistory) {
                 HistoryView(caregiver: currentCaregiver)
+            }
+            .sheet(isPresented: $showingReceiptForm) {
+                ReceiptFormView(shifts: weekShifts, caregiver: currentCaregiver)
             }
             .sheet(item: $shiftToEdit) { shift in
                 EditShiftView(shift: shift)
@@ -364,26 +368,11 @@ struct HomeView: View {
     
     private var weekActionsSection: some View {
         VStack(spacing: 12) {
-            Text("Week-to-Date Actions")
+            Text("Weekly Summary")
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
             HStack(spacing: 12) {
-                Button {
-                    copyWeekNote()
-                } label: {
-                    VStack {
-                        Image(systemName: "doc.on.doc")
-                        Text("Copy Week")
-                            .font(.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .foregroundColor(.primary)
-                
                 Button {
                     shareWeekNote()
                 } label: {
@@ -400,11 +389,11 @@ struct HomeView: View {
                 .foregroundColor(.primary)
                 
                 Button {
-                    copyFullNote()
+                    generateReceipt()
                 } label: {
                     VStack {
-                        Image(systemName: "doc.text")
-                        Text("Copy All")
+                        Image(systemName: "doc.plaintext")
+                        Text("Receipt")
                             .font(.caption)
                     }
                     .frame(maxWidth: .infinity)
@@ -413,6 +402,7 @@ struct HomeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .foregroundColor(.primary)
+                .disabled(weekShifts.isEmpty)
             }
         }
     }
@@ -590,6 +580,10 @@ struct HomeView: View {
         shareItem = ShareItem(text: note)
     }
     
+    private func generateReceipt() {
+        showingReceiptForm = true
+    }
+    
     private func copyFullNote() {
         let note = NoteGenerator.generateFullNote(
             shifts: allShifts,
@@ -618,7 +612,27 @@ struct HomeView: View {
 
 struct ShareItem: Identifiable {
     let id = UUID()
-    let text: String
+    let text: String?
+    let url: URL?
+    
+    init(text: String) {
+        self.text = text
+        self.url = nil
+    }
+    
+    init(url: URL) {
+        self.text = nil
+        self.url = url
+    }
+    
+    var activityItems: [Any] {
+        if let text = text {
+            return [text]
+        } else if let url = url {
+            return [url]
+        }
+        return []
+    }
 }
 
 struct ShareSheet: UIViewControllerRepresentable {
