@@ -45,7 +45,13 @@ struct ReceiptFormView: View {
     @State private var includeTaxId: Bool = true
     @State private var includeEmail: Bool = true
     
+    // Payment Information
+    @State private var markAsPaid: Bool = false
+    @State private var paymentDate: Date = Date()
+    @State private var paymentMethod: String = "Zelle"
+    
     @State private var shareItem: ShareItem?
+    @State private var isGeneratingPDF: Bool = false
     
     init(shifts: [Shift], caregiver: Caregiver, settings: AppSettings) {
         self.shifts = shifts
@@ -57,7 +63,12 @@ struct ReceiptFormView: View {
         _providerRole = State(initialValue: caregiver.role)
         _providerPhone = State(initialValue: caregiver.zelleInfo)
         _receiptNumber = State(initialValue: "NL-\(Int(Date().timeIntervalSince1970))")
-        _serviceProvided = State(initialValue: "Childcare Services")
+        
+        // Initialize provider info from settings (persistent)
+        _providerEmail = State(initialValue: settings.receiptProviderEmail)
+        _providerAddress = State(initialValue: settings.receiptProviderAddress)
+        _providerTaxId = State(initialValue: settings.receiptProviderTaxId)
+        _serviceProvided = State(initialValue: settings.receiptServiceProvided)
         
         // Initialize date range to current week (using settings week start day)
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
@@ -103,6 +114,24 @@ struct ReceiptFormView: View {
                     Toggle("Include Provider Signature Line", isOn: $includeSignatureLine)
                     Toggle("Include Client Signature Line", isOn: $includeClientSignature)
                     
+                    Toggle("Payment Options", isOn: $markAsPaid)
+                    
+                    if markAsPaid {
+                        DatePicker("Payment Date", selection: $paymentDate, displayedComponents: .date)
+                        
+                        Picker("Payment Method", selection: $paymentMethod) {
+                            Text("Cash").tag("Cash")
+                            Text("Check").tag("Check")
+                            Text("Zelle").tag("Zelle")
+                            Text("Venmo").tag("Venmo")
+                            Text("CashApp").tag("CashApp")
+                            Text("PayPal").tag("PayPal")
+                            Text("Bank Transfer").tag("Bank Transfer")
+                            Text("Mark Manually (checkbox)").tag("Manual")
+                            Text("Other").tag("Other")
+                        }
+                    }
+                    
                     TextField("Additional Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
                 } header: {
@@ -114,7 +143,6 @@ struct ReceiptFormView: View {
                 // Provider Section
                 Section {
                     TextField("Name", text: $providerName)
-                    TextField("Role/Title", text: $providerRole)
                     TextField("Service Provided", text: $serviceProvided)
                     TextField("Phone", text: $providerPhone)
                         .keyboardType(.phonePad)
@@ -196,6 +224,7 @@ struct ReceiptFormView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .disabled(isGeneratingPDF)
                 }
                 
                 ToolbarItem(placement: .primaryAction) {
@@ -203,21 +232,50 @@ struct ReceiptFormView: View {
                         generateReceipt()
                     }
                     .fontWeight(.semibold)
-                    .disabled(providerName.isEmpty || clientName.isEmpty)
+                    .disabled(providerName.isEmpty || clientName.isEmpty || isGeneratingPDF)
                 }
             }
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: item.activityItems)
             }
+            .overlay {
+                if isGeneratingPDF {
+                    ZStack {
+                        Color.black.opacity(0.3)
+                            .ignoresSafeArea()
+                        
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                                .tint(.white)
+                            Text("Generating Receipt...")
+                                .foregroundStyle(.white)
+                                .font(.headline)
+                        }
+                        .padding(30)
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(16)
+                        .shadow(radius: 10)
+                    }
+                }
+            }
         }
     }
     
     private func generateReceipt() {
+        isGeneratingPDF = true
+        
         // Save client info to settings for persistence
         settings.receiptClientName = clientName
         settings.receiptClientPhone = clientPhone
         settings.receiptClientEmail = clientEmail
         settings.receiptClientAddress = clientAddress
+        
+        // Save provider info to settings for persistence
+        settings.receiptProviderEmail = providerEmail
+        settings.receiptProviderAddress = providerAddress
+        settings.receiptProviderTaxId = providerTaxId
+        settings.receiptServiceProvided = serviceProvided
         
         let receiptData = ReceiptData(
             receiptTitle: receiptTitle,
@@ -240,23 +298,34 @@ struct ReceiptFormView: View {
             includeClientSignature: includeClientSignature,
             includeProviderTaxId: includeTaxId,
             includeProviderEmail: includeEmail,
-            includeProviderAddress: includeAddress
+            includeProviderAddress: includeAddress,
+            markAsPaid: markAsPaid,
+            paymentDate: markAsPaid ? paymentDate : nil,
+            paymentMethod: markAsPaid ? paymentMethod : nil
         )
         
-        if let pdfData = ReceiptGenerator.generateReceiptPDF(
-            shifts: shifts,
-            caregiver: caregiver,
-            receiptData: receiptData
-        ) {
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("Childcare_Receipt_\(receiptNumber).pdf")
+        // Small delay to allow loading indicator to appear, then generate PDF on main thread
+        // (WebKit requires main thread for HTML rendering)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let pdfData = ReceiptGenerator.generateReceiptPDF(
+                shifts: self.shifts,
+                caregiver: self.caregiver,
+                receiptData: receiptData
+            )
             
-            do {
-                try pdfData.write(to: tempURL)
-                shareItem = ShareItem(url: tempURL)
-            } catch {
-                print("Error saving PDF: \(error)")
+            if let pdfData = pdfData {
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("Childcare_Receipt_\(self.receiptNumber).pdf")
+                
+                do {
+                    try pdfData.write(to: tempURL)
+                    self.shareItem = ShareItem(url: tempURL)
+                } catch {
+                    print("Error saving PDF: \(error)")
+                }
             }
+            
+            self.isGeneratingPDF = false
         }
     }
     
@@ -292,4 +361,7 @@ struct ReceiptData {
     let includeProviderTaxId: Bool
     let includeProviderEmail: Bool
     let includeProviderAddress: Bool
+    let markAsPaid: Bool
+    let paymentDate: Date?
+    let paymentMethod: String?
 }

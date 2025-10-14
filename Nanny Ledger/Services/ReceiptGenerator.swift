@@ -101,6 +101,29 @@ struct ReceiptGenerator {
             notesHTML += "</div>"
         }
         
+        // Payment status section
+        var paymentHTML = ""
+        if receiptData.markAsPaid, let paymentDate = receiptData.paymentDate {
+            let methodStr = receiptData.paymentMethod ?? "Cash"
+            
+            if methodStr == "Manual" {
+                // Show checkbox for manual marking with line for date
+                paymentHTML = """
+                <div class="payment-status manual">
+                    <span>☐ Paid on <span class="manual-line">&nbsp;</span></span>
+                </div>
+                """
+            } else {
+                // Show completed payment with date and method
+                let paymentDateStr = dateFormatter.string(from: paymentDate)
+                paymentHTML = """
+                <div class="payment-status paid">
+                    <span>✓ Paid on \(paymentDateStr) via \(methodStr)</span>
+                </div>
+                """
+            }
+        }
+        
         // Signature section
         var signatureHTML = ""
         if receiptData.includeSignatureLine || receiptData.includeClientSignature {
@@ -146,47 +169,47 @@ struct ReceiptGenerator {
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                     max-width: 800px;
-                    margin: 20px auto;
-                    padding: 15px;
+                    margin: 15px auto;
+                    padding: 12px;
                     color: #333;
                 }
                 .header {
                     text-align: center;
-                    margin-bottom: 20px;
-                    border-bottom: 3px solid #5E5CE6;
-                    padding-bottom: 15px;
+                    margin-bottom: 15px;
+                    border-bottom: 2px solid #5E5CE6;
+                    padding-bottom: 10px;
                 }
                 .header h1 {
                     margin: 0;
                     color: #5E5CE6;
-                    font-size: 28px;
+                    font-size: 22px;
                 }
                 .header p {
-                    margin: 5px 0;
+                    margin: 3px 0;
                     color: #666;
-                    font-size: 14px;
+                    font-size: 11px;
                 }
                 .info-section {
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
-                    margin-bottom: 20px;
+                    gap: 8px;
+                    margin-bottom: 15px;
                 }
                 .info-box {
-                    padding: 12px;
+                    padding: 8px;
                     background: #f5f5f7;
-                    border-radius: 8px;
+                    border-radius: 6px;
                 }
                 .info-box h3 {
-                    margin: 0 0 8px 0;
-                    font-size: 12px;
+                    margin: 0 0 6px 0;
+                    font-size: 10px;
                     color: #666;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
                 }
                 .info-box p {
-                    margin: 4px 0;
-                    font-size: 14px;
+                    margin: 2px 0;
+                    font-size: 11px;
                 }
                 .provider-columns {
                     display: grid;
@@ -213,82 +236,111 @@ struct ReceiptGenerator {
                 table {
                     width: 100%;
                     border-collapse: collapse;
-                    margin: 15px 0;
+                    margin: 10px 0;
                 }
                 th {
                     background: #5E5CE6;
                     color: white;
-                    padding: 10px;
+                    padding: 6px 8px;
                     text-align: left;
                     font-weight: 600;
-                    font-size: 14px;
+                    font-size: 11px;
                 }
                 th.right, td.right {
                     text-align: right;
                 }
                 td {
-                    padding: 10px;
+                    padding: 6px 8px;
                     border-bottom: 1px solid #e5e5e7;
-                    font-size: 14px;
+                    font-size: 11px;
                 }
                 tr:last-child td {
                     border-bottom: none;
                 }
                 .totals {
-                    margin-top: 15px;
-                    padding: 15px;
+                    margin-top: 10px;
+                    padding: 10px;
                     background: #f5f5f7;
-                    border-radius: 8px;
+                    border-radius: 6px;
                 }
                 .total-row {
                     display: flex;
                     justify-content: space-between;
-                    margin: 8px 0;
-                    font-size: 15px;
+                    margin: 5px 0;
+                    font-size: 12px;
                 }
                 .total-row.grand {
-                    font-size: 18px;
+                    font-size: 14px;
                     font-weight: bold;
                     color: #5E5CE6;
                     border-top: 2px solid #5E5CE6;
-                    padding-top: 12px;
-                    margin-top: 12px;
+                    padding-top: 8px;
+                    margin-top: 8px;
+                }
+                .payment-status {
+                    margin-top: 10px;
+                    padding: 8px;
+                    border-radius: 6px;
+                    text-align: center;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                .payment-status.paid {
+                    background: #d1fae5;
+                    color: #065f46;
+                    border: 1px solid #10b981;
+                }
+                .payment-status.manual {
+                    background: #f3f4f6;
+                    color: #374151;
+                    border: 1px solid #9ca3af;
+                }
+                .payment-status.manual span {
+                    font-size: 14px;
+                    letter-spacing: 0.5px;
+                }
+                .manual-line {
+                    display: inline-block;
+                    min-width: 120px;
+                    border-bottom: 1px solid #374151;
+                    padding: 0 4px;
+                    margin: 0 4px;
                 }
                 .notes {
-                    margin: 20px 0;
-                    padding: 15px;
+                    margin: 12px 0;
+                    padding: 10px;
                     background: #fffbea;
-                    border-left: 4px solid #f59e0b;
+                    border-left: 3px solid #f59e0b;
                     border-radius: 4px;
                 }
                 .notes h3 {
-                    margin: 0 0 8px 0;
-                    font-size: 14px;
+                    margin: 0 0 6px 0;
+                    font-size: 11px;
                     color: #92400e;
                 }
                 .notes p {
                     margin: 0;
                     color: #78350f;
-                    line-height: 1.4;
-                    font-size: 13px;
+                    line-height: 1.3;
+                    font-size: 10px;
                 }
                 .signature {
-                    margin-top: 25px;
+                    margin-top: 15px;
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 15px 30px;
+                    gap: 10px 20px;
                 }
                 .signature-line {
                     min-width: 0;
                 }
                 .signature-line .line {
-                    border-bottom: 2px solid #333;
-                    margin-bottom: 6px;
-                    height: 30px;
+                    border-bottom: 1px solid #333;
+                    margin-bottom: 4px;
+                    height: 20px;
                 }
                 .signature-line p {
                     margin: 0;
-                    font-size: 12px;
+                    font-size: 9px;
                     color: #666;
                 }
                 .footer {
@@ -370,6 +422,8 @@ struct ReceiptGenerator {
                     <span>Total Amount:</span>
                     <span>\(totalAmountStr)</span>
                 </div>
+                
+                \(paymentHTML)
             </div>
             
             \(notesHTML)

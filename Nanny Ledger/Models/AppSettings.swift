@@ -30,6 +30,12 @@ final class AppSettings {
     var receiptClientEmail: String = ""
     var receiptClientAddress: String = ""
     
+    // Receipt provider information (persistent)
+    var receiptProviderEmail: String = ""
+    var receiptProviderAddress: String = ""
+    var receiptProviderTaxId: String = ""
+    var receiptServiceProvided: String = "Childcare Services"
+    
     // Default hours for each weekday (1=Sun...7=Sat)
     var sundayStart: String = "22:00"
     var sundayEnd: String = "08:00"
