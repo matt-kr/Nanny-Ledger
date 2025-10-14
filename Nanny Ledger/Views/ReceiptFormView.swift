@@ -13,6 +13,13 @@ struct ReceiptFormView: View {
     let shifts: [Shift]
     let caregiver: Caregiver
     
+    // Receipt Details
+    @State private var receiptTitle: String = "Childcare Receipt"
+    @State private var receiptNumber: String
+    @State private var startDate: Date
+    @State private var endDate: Date
+    @State private var notes: String = ""
+    
     // Provider Information
     @State private var providerName: String
     @State private var providerRole: String
@@ -20,6 +27,7 @@ struct ReceiptFormView: View {
     @State private var providerEmail: String = ""
     @State private var providerAddress: String = ""
     @State private var providerTaxId: String = ""
+    @State private var serviceProvided: String = ""
     
     // Client Information
     @State private var clientName: String = ""
@@ -27,9 +35,7 @@ struct ReceiptFormView: View {
     @State private var clientPhone: String = ""
     @State private var clientEmail: String = ""
     
-    // Receipt Details
-    @State private var receiptNumber: String
-    @State private var notes: String = ""
+    // Toggles
     @State private var includeSignatureLine: Bool = true
     @State private var includeClientSignature: Bool = true
     @State private var includeAddress: Bool = false
@@ -47,15 +53,41 @@ struct ReceiptFormView: View {
         _providerRole = State(initialValue: caregiver.role)
         _providerPhone = State(initialValue: caregiver.zelleInfo)
         _receiptNumber = State(initialValue: "NL-\(Int(Date().timeIntervalSince1970))")
+        
+        // Initialize date range from shifts
+        let sortedShifts = shifts.sorted { $0.date < $1.date }
+        _startDate = State(initialValue: sortedShifts.first?.date ?? Date())
+        _endDate = State(initialValue: sortedShifts.last?.date ?? Date())
+        _serviceProvided = State(initialValue: "Childcare Services")
     }
     
     var body: some View {
         NavigationStack {
             Form {
+                // Receipt Details Section (moved to top)
+                Section {
+                    TextField("Receipt Title", text: $receiptTitle)
+                    TextField("Receipt Number", text: $receiptNumber)
+                    
+                    DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                    DatePicker("End Date", selection: $endDate, displayedComponents: .date)
+                    
+                    Toggle("Include Provider Signature Line", isOn: $includeSignatureLine)
+                    Toggle("Include Client Signature Line", isOn: $includeClientSignature)
+                    
+                    TextField("Additional Notes (optional)", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
+                } header: {
+                    Text("Receipt Details")
+                } footer: {
+                    Text("Notes will appear at the bottom of the receipt")
+                }
+                
                 // Provider Section
                 Section {
                     TextField("Name", text: $providerName)
                     TextField("Role/Title", text: $providerRole)
+                    TextField("Service Provided", text: $serviceProvided)
                     TextField("Phone", text: $providerPhone)
                         .keyboardType(.phonePad)
                     
@@ -92,21 +124,6 @@ struct ReceiptFormView: View {
                         .lineLimit(2...4)
                 } header: {
                     Text("Client Information")
-                }
-                
-                // Receipt Details Section
-                Section {
-                    TextField("Receipt Number", text: $receiptNumber)
-                    
-                    Toggle("Include Provider Signature Line", isOn: $includeSignatureLine)
-                    Toggle("Include Client Signature Line", isOn: $includeClientSignature)
-                    
-                    TextField("Additional Notes (optional)", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-                } header: {
-                    Text("Receipt Details")
-                } footer: {
-                    Text("Notes will appear at the bottom of the receipt")
                 }
                 
                 // Summary Section
@@ -172,9 +189,13 @@ struct ReceiptFormView: View {
     
     private func generateReceipt() {
         let receiptData = ReceiptData(
+            receiptTitle: receiptTitle,
             receiptNumber: receiptNumber,
+            startDate: startDate,
+            endDate: endDate,
             providerName: providerName,
             providerRole: providerRole,
+            serviceProvided: serviceProvided,
             providerPhone: providerPhone,
             providerEmail: includeEmail ? providerEmail : nil,
             providerAddress: includeAddress ? providerAddress : nil,
@@ -219,9 +240,13 @@ struct ReceiptFormView: View {
 // MARK: - Receipt Data Model
 
 struct ReceiptData {
+    let receiptTitle: String
     let receiptNumber: String
+    let startDate: Date
+    let endDate: Date
     let providerName: String
     let providerRole: String
+    let serviceProvided: String
     let providerPhone: String
     let providerEmail: String?
     let providerAddress: String?

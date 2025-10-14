@@ -24,9 +24,6 @@ struct ReceiptGenerator {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "MMM d, yyyy"
         
-        let startDate = sortedShifts.first?.date ?? Date()
-        let endDate = sortedShifts.last?.date ?? Date()
-        
         var shiftRows = ""
         for shift in sortedShifts {
             let dateStr = dateFormatter.string(from: shift.date)
@@ -45,44 +42,44 @@ struct ReceiptGenerator {
         }
         
         // Provider info HTML
-        var providerInfo = ""
-        providerInfo += "<p><strong>\(receiptData.providerName)</strong></p>"
-        providerInfo += "<p>\(receiptData.providerRole)</p>"
+        // Provider info HTML - 2 column layout
+        var providerLeft = ""
+        providerLeft += "<p><strong>Name:</strong> \(receiptData.providerName)</p>"
+        providerLeft += "<p><strong>Role:</strong> \(receiptData.providerRole)</p>"
+        providerLeft += "<p><strong>Service:</strong> \(receiptData.serviceProvided)</p>"
         
-        if !receiptData.providerPhone.isEmpty {
-            providerInfo += "<p>\(receiptData.providerPhone)</p>"
-        }
+        var providerRight = ""
+        providerRight += "<p><strong>Phone:</strong> \(receiptData.providerPhone.isEmpty ? "_________________" : receiptData.providerPhone)</p>"
         
-        // Always show if toggled on, even if empty (for manual fill-in)
         if receiptData.includeProviderEmail {
             let email = receiptData.providerEmail ?? ""
-            providerInfo += "<p>\(email.isEmpty ? "Email: _________________" : email)</p>"
+            providerRight += "<p><strong>Email:</strong> \(email.isEmpty ? "_________________" : email)</p>"
         }
         
         if receiptData.includeProviderAddress {
             let address = receiptData.providerAddress ?? ""
-            providerInfo += "<p style='white-space: pre-line;'>\(address.isEmpty ? "Address: _________________" : address)</p>"
+            providerRight += "<p><strong>Address:</strong> \(address.isEmpty ? "_________________" : address)</p>"
         }
         
         if receiptData.includeProviderTaxId {
             let taxId = receiptData.providerTaxId ?? ""
-            providerInfo += "<p>SSN/EIN: \(taxId.isEmpty ? "_________________" : taxId)</p>"
+            providerRight += "<p><strong>SSN/EIN:</strong> \(taxId.isEmpty ? "_________________" : taxId)</p>"
         }
         
         // Client info HTML
         var clientInfo = ""
-        clientInfo += "<p><strong>\(receiptData.clientName)</strong></p>"
+        clientInfo += "<p><strong>Name:</strong> \(receiptData.clientName)</p>"
         
         if let phone = receiptData.clientPhone, !phone.isEmpty {
-            clientInfo += "<p>\(phone)</p>"
+            clientInfo += "<p><strong>Phone:</strong> \(phone)</p>"
         }
         
         if let email = receiptData.clientEmail, !email.isEmpty {
-            clientInfo += "<p>\(email)</p>"
+            clientInfo += "<p><strong>Email:</strong> \(email)</p>"
         }
         
         if let address = receiptData.clientAddress, !address.isEmpty {
-            clientInfo += "<p style='white-space: pre-line;'>\(address)</p>"
+            clientInfo += "<p><strong>Address:</strong> \(address)</p>"
         }
         
         // Notes section
@@ -161,21 +158,14 @@ struct ReceiptGenerator {
                 }
                 .info-section {
                     display: flex;
-                    justify-content: space-between;
+                    flex-direction: column;
+                    gap: 12px;
                     margin-bottom: 20px;
                 }
                 .info-box {
-                    flex: 1;
                     padding: 12px;
                     background: #f5f5f7;
                     border-radius: 8px;
-                    margin: 0 10px;
-                }
-                .info-box:first-child {
-                    margin-left: 0;
-                }
-                .info-box:last-child {
-                    margin-right: 0;
                 }
                 .info-box h3 {
                     margin: 0 0 8px 0;
@@ -187,6 +177,19 @@ struct ReceiptGenerator {
                 .info-box p {
                     margin: 4px 0;
                     font-size: 14px;
+                }
+                .provider-columns {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+                .period-inline {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .period-inline p {
+                    margin: 0;
                 }
                 table {
                     width: 100%;
@@ -252,13 +255,12 @@ struct ReceiptGenerator {
                 }
                 .signature {
                     margin-top: 25px;
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 20px;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px 30px;
                 }
                 .signature-line {
-                    flex: 1;
-                    min-width: 180px;
+                    min-width: 0;
                 }
                 .signature-line .line {
                     border-bottom: 2px solid #333;
@@ -288,14 +290,17 @@ struct ReceiptGenerator {
         </head>
         <body>
             <div class="header">
-                <h1>Childcare Receipt</h1>
+                <h1>\(receiptData.receiptTitle)</h1>
                 <p>Receipt #\(receiptData.receiptNumber)</p>
             </div>
             
             <div class="info-section">
                 <div class="info-box">
                     <h3>Service Provider</h3>
-                    \(providerInfo)
+                    <div class="provider-columns">
+                        <div>\(providerLeft)</div>
+                        <div>\(providerRight)</div>
+                    </div>
                 </div>
                 
                 <div class="info-box">
@@ -305,9 +310,10 @@ struct ReceiptGenerator {
                 
                 <div class="info-box">
                     <h3>Period</h3>
-                    <p>\(dateFormatter.string(from: startDate))</p>
-                    <p>to</p>
-                    <p>\(dateFormatter.string(from: endDate))</p>
+                    <div class="period-inline">
+                        <p><strong>From:</strong> \(dateFormatter.string(from: receiptData.startDate))</p>
+                        <p><strong>To:</strong> \(dateFormatter.string(from: receiptData.endDate))</p>
+                    </div>
                 </div>
             </div>
             
@@ -350,7 +356,6 @@ struct ReceiptGenerator {
             
             <div class="footer">
                 <p>Generated on \(dateFormatter.string(from: Date()))</p>
-                <p>Thank you for your business</p>
             </div>
         </body>
         </html>
