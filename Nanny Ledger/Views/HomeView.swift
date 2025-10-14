@@ -22,6 +22,8 @@ struct HomeView: View {
     @State private var showingDeleteConfirmation = false
     @State private var shiftToEdit: Shift?
     @State private var selectedCaregiver: Caregiver?
+    @State private var showingDuplicateAlert = false
+    @State private var duplicateAlertMessage = ""
     
     private var settings: AppSettings {
         if let existing = settingsQuery.first {
@@ -147,6 +149,11 @@ struct HomeView: View {
                 }
             } message: { shift in
                 Text("\(shift.date.formattedWithWeekday())\n\(shift.startTime) – \(shift.endTime)")
+            }
+            .alert("Already Logged", isPresented: $showingDuplicateAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(duplicateAlertMessage)
             }
         }
     }
@@ -494,9 +501,24 @@ struct HomeView: View {
     
     private func logTonight() {
         let today = Date()
+        let todayStart = Calendar.current.startOfDay(for: today)
         let defaults = currentCaregiver.defaultStartTime.isEmpty ? 
             settings.defaultTimes(for: today) : 
             (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
+        
+        // Check for exact duplicate
+        let duplicateExists = allShifts.contains { shift in
+            Calendar.current.startOfDay(for: shift.date) == todayStart &&
+            shift.caregiver?.id == currentCaregiver.id &&
+            shift.startTime == defaults.start &&
+            shift.endTime == defaults.end
+        }
+        
+        if duplicateExists {
+            duplicateAlertMessage = "You already logged a shift for \(currentCaregiver.name) today from \(defaults.start) to \(defaults.end)."
+            showingDuplicateAlert = true
+            return
+        }
         
         print("🔵 Logging shift with times: \(defaults.start) - \(defaults.end)")
         print("🔵 Caregiver: \(currentCaregiver.name), Rate: \(currentCaregiver.hourlyRate)")
@@ -522,6 +544,22 @@ struct HomeView: View {
         let defaults = currentCaregiver.defaultStartTime.isEmpty ? 
             settings.defaultTimes(for: yesterday) : 
             (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
+        
+        // Check for duplicate shift
+        let yesterdayStart = Calendar.current.startOfDay(for: yesterday)
+        let duplicateExists = allShifts.contains { shift in
+            let shiftStart = Calendar.current.startOfDay(for: shift.date)
+            return shiftStart == yesterdayStart &&
+                   shift.caregiver?.id == currentCaregiver.id &&
+                   shift.startTime == defaults.start &&
+                   shift.endTime == defaults.end
+        }
+        
+        if duplicateExists {
+            duplicateAlertMessage = "You already logged a shift for \(currentCaregiver.name) yesterday from \(defaults.start) to \(defaults.end)."
+            showingDuplicateAlert = true
+            return
+        }
         
         let shift = Shift(
             date: yesterday,
