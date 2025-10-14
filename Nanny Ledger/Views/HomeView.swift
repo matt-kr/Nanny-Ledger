@@ -84,9 +84,32 @@ struct HomeView: View {
                 .padding()
             }
             .id(currentCaregiver.id) // Force refresh when caregiver changes
-            .navigationTitle("Nanny Ledger")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "moon.stars.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                        
+                        Text("Nanny Ledger")
+                            .font(.title.bold())
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    }
+                }
+                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingSettings = true
@@ -281,14 +304,14 @@ struct HomeView: View {
             .padding(.vertical, 20)
             .background(
                 LinearGradient(
-                    colors: [Color.blue, Color.blue.opacity(0.8)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    colors: [Color.blue, Color.purple],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
             )
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+            .shadow(color: .purple.opacity(0.3), radius: 8, y: 4)
         }
     }
     
