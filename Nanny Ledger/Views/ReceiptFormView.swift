@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ReceiptFormView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     
     let shifts: [Shift]
     let caregiver: Caregiver
+    let settings: AppSettings
     
     // Receipt Details
     @State private var receiptTitle: String = "Childcare Receipt"
@@ -29,36 +32,61 @@ struct ReceiptFormView: View {
     @State private var providerTaxId: String = ""
     @State private var serviceProvided: String = ""
     
-    // Client Information
-    @State private var clientName: String = ""
-    @State private var clientAddress: String = ""
-    @State private var clientPhone: String = ""
-    @State private var clientEmail: String = ""
+    // Client Information (bound to settings for persistence)
+    @State private var clientName: String
+    @State private var clientAddress: String
+    @State private var clientPhone: String
+    @State private var clientEmail: String
     
     // Toggles
     @State private var includeSignatureLine: Bool = true
     @State private var includeClientSignature: Bool = true
-    @State private var includeAddress: Bool = false
-    @State private var includeTaxId: Bool = false
-    @State private var includeEmail: Bool = false
+    @State private var includeAddress: Bool = true
+    @State private var includeTaxId: Bool = true
+    @State private var includeEmail: Bool = true
     
     @State private var shareItem: ShareItem?
     
-    init(shifts: [Shift], caregiver: Caregiver) {
+    init(shifts: [Shift], caregiver: Caregiver, settings: AppSettings) {
         self.shifts = shifts
         self.caregiver = caregiver
+        self.settings = settings
         
         // Initialize with caregiver defaults
         _providerName = State(initialValue: caregiver.name)
         _providerRole = State(initialValue: caregiver.role)
         _providerPhone = State(initialValue: caregiver.zelleInfo)
         _receiptNumber = State(initialValue: "NL-\(Int(Date().timeIntervalSince1970))")
-        
-        // Initialize date range from shifts
-        let sortedShifts = shifts.sorted { $0.date < $1.date }
-        _startDate = State(initialValue: sortedShifts.first?.date ?? Date())
-        _endDate = State(initialValue: sortedShifts.last?.date ?? Date())
         _serviceProvided = State(initialValue: "Childcare Services")
+        
+        // Initialize date range to current week (using settings week start day)
+        let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
+        _startDate = State(initialValue: weekStart)
+        _endDate = State(initialValue: Date())
+        
+        // Initialize client info from settings (persistent)
+        _clientName = State(initialValue: settings.receiptClientName)
+        _clientPhone = State(initialValue: settings.receiptClientPhone)
+        _clientEmail = State(initialValue: settings.receiptClientEmail)
+        _clientAddress = State(initialValue: settings.receiptClientAddress)
+    }
+    
+    // Computed property for filtered shifts based on date range
+    private var filteredShifts: [Shift] {
+        shifts.filter { shift in
+            let shiftDate = Calendar.current.startOfDay(for: shift.date)
+            let start = Calendar.current.startOfDay(for: startDate)
+            let end = Calendar.current.startOfDay(for: endDate)
+            return shiftDate >= start && shiftDate <= end
+        }
+    }
+    
+    private var totalHours: Double {
+        filteredShifts.reduce(0.0) { $0 + $1.roundedHours }
+    }
+    
+    private var totalAmount: Double {
+        totalHours * caregiver.hourlyRate
     }
     
     var body: some View {
@@ -128,13 +156,10 @@ struct ReceiptFormView: View {
                 
                 // Summary Section
                 Section {
-                    let totalHours = shifts.reduce(0.0) { $0 + $1.roundedHours }
-                    let totalAmount = totalHours * caregiver.hourlyRate
-                    
                     HStack {
-                        Text("Shifts")
+                        Text("Shifts (in date range)")
                         Spacer()
-                        Text("\(shifts.count)")
+                        Text("\(filteredShifts.count)")
                             .foregroundStyle(.secondary)
                     }
                     
@@ -188,6 +213,12 @@ struct ReceiptFormView: View {
     }
     
     private func generateReceipt() {
+        // Save client info to settings for persistence
+        settings.receiptClientName = clientName
+        settings.receiptClientPhone = clientPhone
+        settings.receiptClientEmail = clientEmail
+        settings.receiptClientAddress = clientAddress
+        
         let receiptData = ReceiptData(
             receiptTitle: receiptTitle,
             receiptNumber: receiptNumber,

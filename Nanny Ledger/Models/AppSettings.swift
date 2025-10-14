@@ -24,6 +24,12 @@ final class AppSettings {
     // Last selected caregiver ID
     var lastSelectedCaregiverId: UUID?
     
+    // Receipt client information (persistent)
+    var receiptClientName: String = ""
+    var receiptClientPhone: String = ""
+    var receiptClientEmail: String = ""
+    var receiptClientAddress: String = ""
+    
     // Default hours for each weekday (1=Sun...7=Sat)
     var sundayStart: String = "22:00"
     var sundayEnd: String = "08:00"

@@ -17,7 +17,17 @@ struct ReceiptGenerator {
     ) -> String {
         guard !shifts.isEmpty else { return "" }
         
-        let sortedShifts = shifts.sorted { $0.date < $1.date }
+        // Filter shifts by date range
+        let filteredShifts = shifts.filter { shift in
+            let shiftDate = Calendar.current.startOfDay(for: shift.date)
+            let startDate = Calendar.current.startOfDay(for: receiptData.startDate)
+            let endDate = Calendar.current.startOfDay(for: receiptData.endDate)
+            return shiftDate >= startDate && shiftDate <= endDate
+        }
+        
+        guard !filteredShifts.isEmpty else { return "" }
+        
+        let sortedShifts = filteredShifts.sorted { $0.date < $1.date }
         let totalHours = sortedShifts.reduce(0.0) { $0 + $1.roundedHours }
         let totalAmount = totalHours * caregiver.hourlyRate
         
@@ -42,11 +52,15 @@ struct ReceiptGenerator {
         }
         
         // Provider info HTML
-        // Provider info HTML - 2 column layout
+        // Provider info HTML - 2 column layout (3 items each)
         var providerLeft = ""
         providerLeft += "<p><strong>Name:</strong> \(receiptData.providerName)</p>"
-        providerLeft += "<p><strong>Role:</strong> \(receiptData.providerRole)</p>"
         providerLeft += "<p><strong>Service:</strong> \(receiptData.serviceProvided)</p>"
+        
+        if receiptData.includeProviderTaxId {
+            let taxId = receiptData.providerTaxId ?? ""
+            providerLeft += "<p><strong>SSN/EIN:</strong> \(taxId.isEmpty ? "_________________" : taxId)</p>"
+        }
         
         var providerRight = ""
         providerRight += "<p><strong>Phone:</strong> \(receiptData.providerPhone.isEmpty ? "_________________" : receiptData.providerPhone)</p>"
@@ -61,25 +75,21 @@ struct ReceiptGenerator {
             providerRight += "<p><strong>Address:</strong> \(address.isEmpty ? "_________________" : address)</p>"
         }
         
-        if receiptData.includeProviderTaxId {
-            let taxId = receiptData.providerTaxId ?? ""
-            providerRight += "<p><strong>SSN/EIN:</strong> \(taxId.isEmpty ? "_________________" : taxId)</p>"
+        // Client info HTML - 2 column layout
+        var clientLeft = ""
+        clientLeft += "<p><strong>Name:</strong> \(receiptData.clientName)</p>"
+        
+        if let address = receiptData.clientAddress, !address.isEmpty {
+            clientLeft += "<p><strong>Address:</strong> \(address)</p>"
         }
         
-        // Client info HTML
-        var clientInfo = ""
-        clientInfo += "<p><strong>Name:</strong> \(receiptData.clientName)</p>"
-        
+        var clientRight = ""
         if let phone = receiptData.clientPhone, !phone.isEmpty {
-            clientInfo += "<p><strong>Phone:</strong> \(phone)</p>"
+            clientRight += "<p><strong>Phone:</strong> \(phone)</p>"
         }
         
         if let email = receiptData.clientEmail, !email.isEmpty {
-            clientInfo += "<p><strong>Email:</strong> \(email)</p>"
-        }
-        
-        if let address = receiptData.clientAddress, !address.isEmpty {
-            clientInfo += "<p><strong>Address:</strong> \(address)</p>"
+            clientRight += "<p><strong>Email:</strong> \(email)</p>"
         }
         
         // Notes section
@@ -182,6 +192,15 @@ struct ReceiptGenerator {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 15px;
+                }
+                .client-columns {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+                .client-columns p {
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
                 }
                 .period-inline {
                     display: flex;
@@ -305,7 +324,10 @@ struct ReceiptGenerator {
                 
                 <div class="info-box">
                     <h3>Client</h3>
-                    \(clientInfo)
+                    <div class="client-columns">
+                        <div>\(clientLeft)</div>
+                        <div>\(clientRight)</div>
+                    </div>
                 </div>
                 
                 <div class="info-box">
@@ -353,10 +375,6 @@ struct ReceiptGenerator {
             \(notesHTML)
             
             \(signatureHTML)
-            
-            <div class="footer">
-                <p>Generated on \(dateFormatter.string(from: Date()))</p>
-            </div>
         </body>
         </html>
         """

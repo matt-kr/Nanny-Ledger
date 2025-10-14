@@ -135,7 +135,7 @@ struct HomeView: View {
                 HistoryView(caregiver: currentCaregiver)
             }
             .sheet(isPresented: $showingReceiptForm) {
-                ReceiptFormView(shifts: weekShifts, caregiver: currentCaregiver)
+                ReceiptFormView(shifts: caregiverShifts, caregiver: currentCaregiver, settings: settings)
             }
             .sheet(item: $shiftToEdit) { shift in
                 EditShiftView(shift: shift)
@@ -461,11 +461,13 @@ struct HomeView: View {
     
     // MARK: - Computed Properties
     
+    private var caregiverShifts: [Shift] {
+        allShifts.filter { $0.caregiver?.id == currentCaregiver.id }
+    }
+    
     private var weekShifts: [Shift] {
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
-        return allShifts.filter { 
-            $0.date >= weekStart && $0.caregiver?.id == currentCaregiver.id
-        }
+        return caregiverShifts.filter { $0.date >= weekStart }
     }
     
     private var hasHistoricalShifts: Bool {
