@@ -143,13 +143,13 @@ struct WeekGroupView: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                // Zelle Payment Note
+                // Payment Note
                 if !shifts.isEmpty {
                     Divider()
                         .padding(.vertical, 4)
                     
                     VStack(spacing: 4) {
-                        Text("Zelle Payment Note")
+                        Text("Payment Note")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         

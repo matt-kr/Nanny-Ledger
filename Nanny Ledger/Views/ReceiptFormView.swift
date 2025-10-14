@@ -46,9 +46,9 @@ struct ReceiptFormView: View {
     @State private var includeEmail: Bool = true
     
     // Payment Information
-    @State private var markAsPaid: Bool = false
+    @State private var markAsPaid: Bool
     @State private var paymentDate: Date = Date()
-    @State private var paymentMethod: String = "Zelle"
+    @State private var paymentMethod: String
     
     @State private var shareItem: ShareItem?
     @State private var isGeneratingPDF: Bool = false
@@ -80,6 +80,10 @@ struct ReceiptFormView: View {
         _clientPhone = State(initialValue: settings.receiptClientPhone)
         _clientEmail = State(initialValue: settings.receiptClientEmail)
         _clientAddress = State(initialValue: settings.receiptClientAddress)
+        
+        // Initialize payment options from settings (persistent)
+        _markAsPaid = State(initialValue: settings.receiptMarkAsPaid)
+        _paymentMethod = State(initialValue: settings.receiptPaymentMethod)
     }
     
     // Computed property for filtered shifts based on date range
@@ -112,9 +116,12 @@ struct ReceiptFormView: View {
                     DatePicker("End Date", selection: $endDate, displayedComponents: .date)
                     
                     Toggle("Include Provider Signature Line", isOn: $includeSignatureLine)
+                        .tint(.purple)
                     Toggle("Include Client Signature Line", isOn: $includeClientSignature)
+                        .tint(.purple)
                     
                     Toggle("Payment Options", isOn: $markAsPaid)
+                        .tint(.purple)
                     
                     if markAsPaid {
                         DatePicker("Payment Date", selection: $paymentDate, displayedComponents: .date)
@@ -148,6 +155,7 @@ struct ReceiptFormView: View {
                         .keyboardType(.phonePad)
                     
                     Toggle("Include Email", isOn: $includeEmail)
+                        .tint(.purple)
                     if includeEmail {
                         TextField("Email", text: $providerEmail)
                             .keyboardType(.emailAddress)
@@ -155,12 +163,14 @@ struct ReceiptFormView: View {
                     }
                     
                     Toggle("Include Address", isOn: $includeAddress)
+                        .tint(.purple)
                     if includeAddress {
                         TextField("Address", text: $providerAddress, axis: .vertical)
                             .lineLimit(2...4)
                     }
                     
                     Toggle("Include SSN / EIN", isOn: $includeTaxId)
+                        .tint(.purple)
                     if includeTaxId {
                         TextField("SSN / EIN (optional)", text: $providerTaxId)
                     }
@@ -217,7 +227,7 @@ struct ReceiptFormView: View {
                     Text("Summary")
                 }
             }
-            .navigationTitle("Generate Receipt")
+            .navigationTitle("Receipt Options")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -231,7 +241,6 @@ struct ReceiptFormView: View {
                     Button("Generate") {
                         generateReceipt()
                     }
-                    .fontWeight(.semibold)
                     .disabled(providerName.isEmpty || clientName.isEmpty || isGeneratingPDF)
                 }
             }
@@ -276,6 +285,10 @@ struct ReceiptFormView: View {
         settings.receiptProviderAddress = providerAddress
         settings.receiptProviderTaxId = providerTaxId
         settings.receiptServiceProvided = serviceProvided
+        
+        // Save payment options to settings for persistence
+        settings.receiptMarkAsPaid = markAsPaid
+        settings.receiptPaymentMethod = paymentMethod
         
         let receiptData = ReceiptData(
             receiptTitle: receiptTitle,

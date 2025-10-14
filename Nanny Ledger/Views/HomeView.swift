@@ -72,7 +72,7 @@ struct HomeView: View {
                     // Caregiver Info/Picker
                     caregiverInfoSection
                     
-                    // PROMINENT Log Tonight Button
+                    // PROMINENT Log Today Button
                     logTonightButton
                     
                     // Quick Actions
@@ -263,13 +263,13 @@ struct HomeView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             
-            // Zelle Payment Note
+            // Payment Note
             if !weekShifts.isEmpty {
                 Divider()
                     .padding(.vertical, 4)
                 
                 VStack(spacing: 4) {
-                    Text("Zelle Payment Note")
+                    Text("Payment Note")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     
@@ -298,7 +298,7 @@ struct HomeView: View {
         .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
     }
     
-    // MARK: - Log Tonight Button (PROMINENT)
+    // MARK: - Log Today Button (PROMINENT)
     
     private var logTonightButton: some View {
         Button {
@@ -307,7 +307,7 @@ struct HomeView: View {
             HStack {
                 Image(systemName: "moon.stars.fill")
                     .font(.title2)
-                Text("Log Tonight")
+                Text("Log Today")
                     .font(.title2)
                     .fontWeight(.semibold)
             }
@@ -335,7 +335,7 @@ struct HomeView: View {
             } label: {
                 HStack {
                     Image(systemName: "moon.fill")
-                    Text("Log Last Night")
+                    Text("Log Yesterday")
                         .fontWeight(.medium)
                     Spacer()
                 }
@@ -351,7 +351,7 @@ struct HomeView: View {
             } label: {
                 HStack {
                     Image(systemName: "calendar.badge.plus")
-                    Text("Add Specific Night")
+                    Text("Add Specific Date")
                         .fontWeight(.medium)
                     Spacer()
                 }
@@ -368,7 +368,7 @@ struct HomeView: View {
     
     private var weekActionsSection: some View {
         VStack(spacing: 12) {
-            Text("Weekly Summary")
+            Text("Documentation")
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
@@ -412,7 +412,7 @@ struct HomeView: View {
     private var shiftListSection: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("This Week's Nights")
+                Text("This Week's Care")
                     .font(.headline)
                 
                 Spacer()
