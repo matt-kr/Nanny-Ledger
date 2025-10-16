@@ -213,11 +213,6 @@ struct SettingsView: View {
                 share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
                 share.publicPermission = .none
                 
-                // Set the target bundle ID to prevent "update app" messages
-                if let bundleID = Bundle.main.bundleIdentifier {
-                    share.targetBundleID = bundleID
-                }
-                
                 recordsToSave.append(share)
                 
                 // Save records (only new ones if root already existed)
