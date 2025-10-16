@@ -190,21 +190,40 @@ struct SettingsView: View {
                     print("✅ Zone already exists or error: \(error.code)")
                 }
                 
-                // Create a root record for the share
+                // Try to fetch existing root record first, or create new one
                 let rootRecordID = CKRecord.ID(recordName: "SharedLedgerRoot", zoneID: zoneID)
-                let rootRecord = CKRecord(recordType: "NannyLedgerData", recordID: rootRecordID)
-                rootRecord["title"] = "Nanny Ledger" as CKRecordValue
-                rootRecord["createdAt"] = Date() as CKRecordValue
+                var rootRecord: CKRecord
+                var recordsToSave: [CKRecord] = []
+                
+                do {
+                    // Try to fetch existing root record
+                    rootRecord = try await privateDatabase.record(for: rootRecordID)
+                    print("✅ Found existing root record")
+                } catch {
+                    // Root record doesn't exist, create new one
+                    print("🔵 Creating new root record")
+                    rootRecord = CKRecord(recordType: "NannyLedgerData", recordID: rootRecordID)
+                    rootRecord["title"] = "Nanny Ledger" as CKRecordValue
+                    rootRecord["createdAt"] = Date() as CKRecordValue
+                    recordsToSave.append(rootRecord)
+                }
                 
                 // Create the share
                 let share = CKShare(rootRecord: rootRecord)
                 share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
                 share.publicPermission = .none
                 
-                // Save both records using the modern API
-                print("🔵 Saving root record and share to CloudKit...")
+                // Set the target bundle ID to prevent "update app" messages
+                if let bundleID = Bundle.main.bundleIdentifier {
+                    share.targetBundleID = bundleID
+                }
+                
+                recordsToSave.append(share)
+                
+                // Save records (only new ones if root already existed)
+                print("🔵 Saving \(recordsToSave.count) records to CloudKit...")
                 let (saveResults, _) = try await privateDatabase.modifyRecords(
-                    saving: [rootRecord, share],
+                    saving: recordsToSave,
                     deleting: []
                 )
                 
