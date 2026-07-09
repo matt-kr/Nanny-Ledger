@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Charts
 
 struct HistoryView: View {
     @Environment(\.dismiss) private var dismiss
@@ -70,6 +71,10 @@ struct HistoryView: View {
                         .padding(.vertical, 60)
                     } else {
                         allTimeSummary
+
+                        if monthlyTotals.count >= 2 {
+                            monthlyChart
+                        }
 
                         ForEach(groupedShifts, id: \.weekStart) { group in
                             WeekGroupView(
@@ -163,6 +168,60 @@ struct HistoryView: View {
                 .opacity(0.85)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Monthly Chart
+
+    private struct MonthTotal: Identifiable {
+        let month: Date
+        let amount: Double
+        var id: Date { month }
+    }
+
+    /// Spending per calendar month (including the current week), most recent 12.
+    private var monthlyTotals: [MonthTotal] {
+        let calendar = Calendar.current
+        let caregiverAll = allShifts.filter { $0.caregiver?.id == caregiver.id }
+
+        var groups: [Date: Double] = [:]
+        for shift in caregiverAll {
+            let components = calendar.dateComponents([.year, .month], from: shift.date)
+            guard let monthStart = calendar.date(from: components) else { continue }
+            groups[monthStart, default: 0] += shift.earnings(at: caregiver.hourlyRate)
+        }
+
+        return Array(
+            groups
+                .map { MonthTotal(month: $0.key, amount: $0.value) }
+                .sorted { $0.month < $1.month }
+                .suffix(12)
+        )
+    }
+
+    private var monthlyChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Monthly Spending")
+                .font(.headline)
+
+            Chart(monthlyTotals) { item in
+                BarMark(
+                    x: .value("Month", item.month, unit: .month),
+                    y: .value("Amount", item.amount)
+                )
+                .foregroundStyle(Theme.gradient)
+                .cornerRadius(4)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                }
+            }
+            .frame(height: 160)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

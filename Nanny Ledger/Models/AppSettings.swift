@@ -14,12 +14,16 @@ final class AppSettings {
     var hourlyRate: Double = 35.0
     var appendTotalsToNote: Bool = true
     
-    // Recipient info for payments (optional for migration compatibility)
-    var recipientName: String = "Maria"
+    // Recipient info for payments (legacy; superseded by Caregiver)
+    var recipientName: String = ""
     var recipientPhone: String = ""
     
     // Color scheme: 0=system, 1=light, 2=dark
     var colorScheme: Int = 0
+
+    // Nightly reminder to log shifts
+    var reminderEnabled: Bool = false
+    var reminderTime: String = "20:00" // HH:mm
     
     // Last selected caregiver ID
     var lastSelectedCaregiverId: UUID?
@@ -60,7 +64,7 @@ final class AppSettings {
         self.weekStartDay = 1 // Sunday
         self.hourlyRate = 35.0
         self.appendTotalsToNote = true
-        self.recipientName = "Maria"
+        self.recipientName = ""
         self.recipientPhone = ""
         self.colorScheme = 0 // System default
         

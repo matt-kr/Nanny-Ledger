@@ -7,22 +7,15 @@
 
 import SwiftUI
 import SwiftData
-import CloudKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var settings: AppSettings
     @Query(sort: \Caregiver.createdDate) private var caregivers: [Caregiver]
-    
-    @State private var showingShareSheet = false
-    @State private var shareController: UICloudSharingController?
-    @State private var showingError = false
-    @State private var errorMessage = ""
-    @State private var isCreatingShare = false
-    @State private var activeShare: CKShare?
+
     @State private var showingCaregiversManagement = false
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -50,21 +43,40 @@ struct SettingsView: View {
                             showingCaregiversManagement = true
                         }
                     }
-                    
+
                     Button {
                         showingCaregiversManagement = true
                     } label: {
                         Label("Manage Caregivers", systemImage: "person.badge.plus")
                     }
                 }
-                
+
                 Section("General") {
                     Picker("Week Starts On", selection: $settings.weekStartDay) {
                         Text("Sunday").tag(1)
                         Text("Monday").tag(2)
                     }
                 }
-                
+
+                Section {
+                    Toggle("Nightly Reminder", isOn: $settings.reminderEnabled)
+                        .tint(.purple)
+
+                    if settings.reminderEnabled {
+                        TimeField(label: "Remind At", time: $settings.reminderTime)
+                    }
+                } header: {
+                    Text("Reminder")
+                } footer: {
+                    Text("A daily nudge to log tonight's shift so nothing slips through.")
+                }
+                .onChange(of: settings.reminderEnabled) { _, _ in
+                    syncReminder()
+                }
+                .onChange(of: settings.reminderTime) { _, _ in
+                    syncReminder()
+                }
+
                 Section("Appearance") {
                     Picker("Color Scheme", selection: $settings.colorScheme) {
                         Text("System").tag(0)
@@ -72,39 +84,29 @@ struct SettingsView: View {
                         Text("Dark").tag(2)
                     }
                 }
-                
+
                 Section {
-                    Button {
-                        shareData()
-                    } label: {
-                        HStack {
-                            if isCreatingShare {
-                                ProgressView()
-                                    .padding(.trailing, 8)
-                            } else {
-                                Image(systemName: "person.2.fill")
-                                    .foregroundColor(.blue)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(isCreatingShare ? "Creating Share..." : "Share Ledger")
-                                    .foregroundColor(.primary)
-                                Text("Invite someone to collaborate")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                    HStack {
+                        Image(systemName: "icloud.fill")
+                            .foregroundColor(.blue)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("iCloud Sync")
+                            Text("On automatically")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
-                    .disabled(isCreatingShare)
                 } header: {
-                    Text("Collaboration")
+                    Text("Sync")
                 } footer: {
-                    Text("Share this ledger with your spouse or partner. They'll be able to view and edit shifts on their device. Both of you need to be signed into iCloud.")
+                    Text("Your ledger syncs automatically between devices signed into the same iCloud account. Sharing with a different iCloud account (like a spouse's) isn't supported yet — it's on the roadmap.")
                 }
-                
+
                 Section("Note Options") {
                     Toggle("Append Totals to Note", isOn: $settings.appendTotalsToNote)
+                        .tint(.purple)
                 }
-                
+
                 Section("Default Hours by Weekday") {
                     WeekdayTimeRow(
                         day: "Sunday",
@@ -148,6 +150,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
+                        try? modelContext.save()
                         dismiss()
                     }
                 }
@@ -155,171 +158,11 @@ struct SettingsView: View {
             .sheet(isPresented: $showingCaregiversManagement) {
                 CaregiversManagementView()
             }
-            .alert("Sharing Error", isPresented: $showingError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(errorMessage)
-            }
         }
     }
-    
-    private func shareData() {
-        isCreatingShare = true
-        
-        Task {
-            do {
-                let container = CloudKitSharingService.getContainer()
-                let privateDatabase = container.privateCloudDatabase
-                
-                // Create a custom zone for sharing
-                let zoneID = CKRecordZone.ID(zoneName: "NannyLedgerSharedZone", ownerName: CKCurrentUserDefaultName)
-                let zone = CKRecordZone(zoneID: zoneID)
-                
-                do {
-                    _ = try await privateDatabase.save(zone)
-                    print("✅ Zone created")
-                } catch let error as CKError {
-                    // Zone might already exist - that's okay
-                    print("✅ Zone already exists or error: \(error.code)")
-                }
-                
-                // Try to fetch existing root record first, or create new one
-                let rootRecordID = CKRecord.ID(recordName: "SharedLedgerRoot", zoneID: zoneID)
-                var rootRecord: CKRecord
-                var recordsToSave: [CKRecord] = []
-                
-                do {
-                    // Try to fetch existing root record
-                    rootRecord = try await privateDatabase.record(for: rootRecordID)
-                    print("✅ Found existing root record")
-                } catch {
-                    // Root record doesn't exist, create new one
-                    print("🔵 Creating new root record")
-                    rootRecord = CKRecord(recordType: "NannyLedgerData", recordID: rootRecordID)
-                    rootRecord["title"] = "Nanny Ledger" as CKRecordValue
-                    rootRecord["createdAt"] = Date() as CKRecordValue
-                    recordsToSave.append(rootRecord)
-                }
-                
-                // Create the share
-                let share = CKShare(rootRecord: rootRecord)
-                share[CKShare.SystemFieldKey.title] = "Nanny Ledger" as CKRecordValue
-                share.publicPermission = .none
-                
-                recordsToSave.append(share)
-                
-                // Save records (only new ones if root already existed)
-                print("🔵 Saving \(recordsToSave.count) records to CloudKit...")
-                let (saveResults, _) = try await privateDatabase.modifyRecords(
-                    saving: recordsToSave,
-                    deleting: []
-                )
-                
-                print("🔵 Save operation completed. Checking results...")
-                print("🔵 Number of save results: \(saveResults.count)")
-                
-                // Extract the saved share from the results
-                var savedShare: CKShare?
-                var saveErrors: [Error] = []
-                
-                for (recordID, result) in saveResults {
-                    print("🔵 Processing result for record: \(recordID.recordName)")
-                    switch result {
-                    case .success(let record):
-                        print("✅ Successfully saved record: \(recordID.recordName), type: \(type(of: record))")
-                        if let ckShare = record as? CKShare {
-                            print("✅ Found the share!")
-                            savedShare = ckShare
-                        }
-                    case .failure(let error):
-                        print("❌ Failed to save record \(recordID): \(error.localizedDescription)")
-                        saveErrors.append(error)
-                    }
-                }
-                
-                // Check if we had any errors
-                if !saveErrors.isEmpty {
-                    let errorMsg = saveErrors.map { $0.localizedDescription }.joined(separator: "\n")
-                    throw NSError(domain: "SettingsView", code: -1,
-                                userInfo: [NSLocalizedDescriptionKey: "Errors saving records:\n\(errorMsg)"])
-                }
-                
-                guard let finalShare = savedShare else {
-                    print("❌ Share was not found in save results")
-                    print("❌ Total results: \(saveResults.count)")
-                    print("❌ Results were: \(saveResults.keys.map { $0.recordName })")
-                    throw NSError(domain: "SettingsView", code: -1,
-                                userInfo: [NSLocalizedDescriptionKey: "Share not in results. Saved \(saveResults.count) records. Check Xcode console for details."])
-                }
-                
-                print("✅ Share created successfully")
-                
-                // Present the sharing controller with the existing share
-                await MainActor.run {
-                    self.activeShare = finalShare
-                    self.presentCloudKitShareController(share: finalShare, container: container)
-                    self.isCreatingShare = false
-                }
-                
-            } catch {
-                await MainActor.run {
-                    isCreatingShare = false
-                    print("❌❌❌ FULL ERROR: \(error)")
-                    print("❌❌❌ ERROR DESCRIPTION: \(error.localizedDescription)")
-                    if let ckError = error as? CKError {
-                        print("❌❌❌ CK ERROR CODE: \(ckError.code)")
-                        print("❌❌❌ CK ERROR: \(ckError)")
-                    }
-                    errorMessage = "Failed to create share: \(error.localizedDescription)"
-                    showingError = true
-                }
-                print("❌ Error creating share: \(error)")
-            }
-        }
-    }
-    
-    private func presentCloudKitShareController(share: CKShare, container: CKContainer) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            print("❌ Could not find root view controller")
-            errorMessage = "Could not present sharing interface"
-            showingError = true
-            return
-        }
-        
-        // Create controller with existing share (not deprecated)
-        let shareController = UICloudSharingController(share: share, container: container)
-        shareController.availablePermissions = [.allowReadWrite, .allowPrivate]
-        shareController.delegate = ShareDelegate.shared
-        
-        // Find the topmost presented view controller
-        var topController = rootViewController
-        while let presented = topController.presentedViewController {
-            topController = presented
-        }
-        
-        topController.present(shareController, animated: true)
-    }
-}
 
-// Shared delegate for UICloudSharingController
-class ShareDelegate: NSObject, UICloudSharingControllerDelegate {
-    static let shared = ShareDelegate()
-    
-    func cloudSharingController(_ csc: UICloudSharingController, failedToSaveShareWithError error: Error) {
-        print("❌ Failed to save share: \(error)")
-    }
-    
-    func itemTitle(for csc: UICloudSharingController) -> String? {
-        "Nanny Ledger"
-    }
-    
-    func cloudSharingControllerDidSaveShare(_ csc: UICloudSharingController) {
-        print("✅ Share saved via controller")
-    }
-    
-    func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
-        print("🛑 Stopped sharing")
+    private func syncReminder() {
+        ReminderService.update(enabled: settings.reminderEnabled, time: settings.reminderTime)
     }
 }
 

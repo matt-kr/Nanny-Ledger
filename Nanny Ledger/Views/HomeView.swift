@@ -26,6 +26,7 @@ struct HomeView: View {
     @State private var duplicateAlertMessage = ""
     @State private var showingReceiptForm = false
     @State private var showingYearSummary = false
+    @State private var showingOnboarding = false
     @State private var justLogged = false
     @State private var copiedNote = false
 
@@ -117,6 +118,11 @@ struct HomeView: View {
                     YearSummaryView(caregiver: caregiver)
                 }
             }
+            .sheet(isPresented: $showingOnboarding) {
+                if let settings = settingsQuery.first {
+                    OnboardingView(settings: settings)
+                }
+            }
             .alert("Delete Shift?", isPresented: $showingDeleteConfirmation, presenting: shiftToDelete) { shift in
                 Button("Cancel", role: .cancel) {
                     shiftToDelete = nil
@@ -149,9 +155,16 @@ struct HomeView: View {
         } else {
             appSettings = AppSettings()
             modelContext.insert(appSettings)
+            try? modelContext.save()
         }
 
-        // Ensure a default caregiver exists and adopt any orphaned shifts
+        // Brand-new install: let the user create their caregiver
+        if allCaregivers.isEmpty && allShifts.isEmpty {
+            showingOnboarding = true
+            return
+        }
+
+        // Existing data: ensure a default caregiver exists and adopt any orphaned shifts
         let caregiver = CaregiverMigration.ensureDefaultCaregiver(modelContext: modelContext, settings: appSettings)
 
         if selectedCaregiver == nil {
