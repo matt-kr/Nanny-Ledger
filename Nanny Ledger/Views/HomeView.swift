@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var showingDuplicateAlert = false
     @State private var duplicateAlertMessage = ""
     @State private var showingReceiptForm = false
+    @State private var showingYearSummary = false
     @State private var justLogged = false
     @State private var copiedNote = false
 
@@ -110,6 +111,11 @@ struct HomeView: View {
             }
             .sheet(item: $shiftToEdit) { shift in
                 EditShiftView(shift: shift)
+            }
+            .sheet(isPresented: $showingYearSummary) {
+                if let caregiver = currentCaregiver {
+                    YearSummaryView(caregiver: caregiver)
+                }
             }
             .alert("Delete Shift?", isPresented: $showingDeleteConfirmation, presenting: shiftToDelete) { shift in
                 Button("Cancel", role: .cancel) {
@@ -497,6 +503,23 @@ struct HomeView: View {
                         Image(systemName: "doc.plaintext")
                             .font(.title3)
                         Text("Receipt")
+                            .font(.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .foregroundColor(.primary)
+                .disabled(caregiverShifts.isEmpty)
+
+                Button {
+                    showingYearSummary = true
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: "chart.pie")
+                            .font(.title3)
+                        Text("Year & Taxes")
                             .font(.caption)
                     }
                     .frame(maxWidth: .infinity)
