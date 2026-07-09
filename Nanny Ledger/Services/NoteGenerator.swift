@@ -39,7 +39,7 @@ struct NoteGenerator {
         var note = "Night nanny dates: \(datesString)"
         
         if uniformHours, let first = shifts.first {
-            note += " (\(first.startTime)–\(first.endTime))"
+            note += " (\(TimeUtil.display(first.startTime))–\(TimeUtil.display(first.endTime)))"
         }
         
         if appendTotals {

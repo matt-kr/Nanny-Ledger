@@ -12,10 +12,12 @@ struct CaregiversManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Caregiver.createdDate) private var caregivers: [Caregiver]
-    
+
     @State private var editingCaregiver: Caregiver?
     @State private var showingAddCaregiver = false
-    
+    @State private var caregiverToDelete: Caregiver?
+    @State private var showingDeleteConfirmation = false
+
     var body: some View {
         NavigationStack {
             List {
@@ -28,33 +30,33 @@ struct CaregiversManagementView: View {
                                 Text(caregiver.name)
                                     .font(.headline)
                                     .foregroundColor(.primary)
-                                
+
                                 if !caregiver.role.isEmpty && caregiver.role != caregiver.name {
                                     Text(caregiver.role)
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
-                                
+
                                 HStack(spacing: 12) {
-                                    Label(formatCurrency(caregiver.hourlyRate) + "/hr", systemImage: "dollarsign.circle")
+                                    Label("\(caregiver.hourlyRate.currencyString)/hr", systemImage: "dollarsign.circle")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
-                                    
-                                    Label("\(caregiver.defaultStartTime)–\(caregiver.defaultEndTime)", systemImage: "clock")
+
+                                    Label("\(TimeUtil.display(caregiver.defaultStartTime))–\(TimeUtil.display(caregiver.defaultEndTime))", systemImage: "clock")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            
+
                             Spacer()
-                            
+
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
                     }
                 }
-                .onDelete(perform: deleteCaregivers)
+                .onDelete(perform: confirmDelete)
             }
             .navigationTitle("Manage Caregivers")
             .navigationBarTitleDisplayMode(.inline)
@@ -64,7 +66,7 @@ struct CaregiversManagementView: View {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAddCaregiver = true
@@ -79,29 +81,39 @@ struct CaregiversManagementView: View {
             .sheet(isPresented: $showingAddCaregiver) {
                 CaregiverAddView()
             }
-        }
-    }
-    
-    private func deleteCaregivers(at offsets: IndexSet) {
-        for index in offsets {
-            let caregiver = caregivers[index]
-            
-            // Don't allow deleting if it's the only caregiver
-            if caregivers.count <= 1 {
-                return
+            .alert("Delete Caregiver?", isPresented: $showingDeleteConfirmation, presenting: caregiverToDelete) { caregiver in
+                Button("Cancel", role: .cancel) {
+                    caregiverToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let caregiver = caregiverToDelete {
+                        modelContext.delete(caregiver)
+                        try? modelContext.save()
+                    }
+                    caregiverToDelete = nil
+                }
+            } message: { caregiver in
+                let shiftCount = caregiver.shifts?.count ?? 0
+                if shiftCount > 0 {
+                    Text("Deleting \(caregiver.name) will also permanently delete \(shiftCount) logged \(shiftCount == 1 ? "shift" : "shifts").")
+                } else {
+                    Text("This will permanently delete \(caregiver.name).")
+                }
             }
-            
-            modelContext.delete(caregiver)
         }
-        
-        try? modelContext.save()
     }
-    
-    private func formatCurrency(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = .current
-        return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
+
+    private func confirmDelete(at offsets: IndexSet) {
+        guard let index = offsets.first else { return }
+
+        // Don't allow deleting the only caregiver
+        if caregivers.count <= 1 {
+            Haptics.warning()
+            return
+        }
+
+        caregiverToDelete = caregivers[index]
+        showingDeleteConfirmation = true
     }
 }
 
@@ -110,14 +122,14 @@ struct CaregiversManagementView: View {
 struct CaregiverAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     @State private var name = ""
     @State private var role = ""
     @State private var hourlyRate = 35.0
     @State private var defaultStartTime = "22:00"
     @State private var defaultEndTime = "08:00"
     @State private var zelleInfo = ""
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -125,7 +137,7 @@ struct CaregiverAddView: View {
                     TextField("Name", text: $name)
                     TextField("Role (e.g., Night Nanny, Babysitter)", text: $role)
                 }
-                
+
                 Section("Payment") {
                     HStack {
                         Text("Hourly Rate")
@@ -134,39 +146,14 @@ struct CaregiverAddView: View {
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
                     }
-                    
+
                     TextField("Zelle/Phone", text: $zelleInfo)
                         .keyboardType(.phonePad)
                 }
-                
+
                 Section("Default Hours") {
-                    HStack {
-                        Text("Start Time")
-                        Spacer()
-                        TextField("22:00", text: $defaultStartTime)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numbersAndPunctuation)
-                            .onChange(of: defaultStartTime) { oldValue, newValue in
-                                // Limit to 5 characters (HH:mm format)
-                                if newValue.count > 5 {
-                                    defaultStartTime = String(newValue.prefix(5))
-                                }
-                            }
-                    }
-                    
-                    HStack {
-                        Text("End Time")
-                        Spacer()
-                        TextField("08:00", text: $defaultEndTime)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numbersAndPunctuation)
-                            .onChange(of: defaultEndTime) { oldValue, newValue in
-                                // Limit to 5 characters (HH:mm format)
-                                if newValue.count > 5 {
-                                    defaultEndTime = String(newValue.prefix(5))
-                                }
-                            }
-                    }
+                    TimeField(label: "Start Time", time: $defaultStartTime)
+                    TimeField(label: "End Time", time: $defaultEndTime)
                 }
             }
             .navigationTitle("Add Caregiver")
@@ -177,7 +164,7 @@ struct CaregiverAddView: View {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
                         addCaregiver()
@@ -187,7 +174,7 @@ struct CaregiverAddView: View {
             }
         }
     }
-    
+
     private func addCaregiver() {
         let caregiver = Caregiver(
             name: name,
@@ -197,9 +184,10 @@ struct CaregiverAddView: View {
             defaultEndTime: defaultEndTime,
             zelleInfo: zelleInfo
         )
-        
+
         modelContext.insert(caregiver)
         try? modelContext.save()
+        Haptics.success()
         dismiss()
     }
 }
@@ -210,7 +198,7 @@ struct CaregiverEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var caregiver: Caregiver
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -218,7 +206,7 @@ struct CaregiverEditView: View {
                     TextField("Name", text: $caregiver.name)
                     TextField("Role (e.g., Night Nanny, Babysitter)", text: $caregiver.role)
                 }
-                
+
                 Section("Payment") {
                     HStack {
                         Text("Hourly Rate")
@@ -227,39 +215,14 @@ struct CaregiverEditView: View {
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
                     }
-                    
+
                     TextField("Zelle/Phone", text: $caregiver.zelleInfo)
                         .keyboardType(.phonePad)
                 }
-                
+
                 Section("Default Hours") {
-                    HStack {
-                        Text("Start Time")
-                        Spacer()
-                        TextField("22:00", text: $caregiver.defaultStartTime)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numbersAndPunctuation)
-                            .onChange(of: caregiver.defaultStartTime) { oldValue, newValue in
-                                // Limit to 5 characters (HH:mm format)
-                                if newValue.count > 5 {
-                                    caregiver.defaultStartTime = String(newValue.prefix(5))
-                                }
-                            }
-                    }
-                    
-                    HStack {
-                        Text("End Time")
-                        Spacer()
-                        TextField("08:00", text: $caregiver.defaultEndTime)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numbersAndPunctuation)
-                            .onChange(of: caregiver.defaultEndTime) { oldValue, newValue in
-                                // Limit to 5 characters (HH:mm format)
-                                if newValue.count > 5 {
-                                    caregiver.defaultEndTime = String(newValue.prefix(5))
-                                }
-                            }
-                    }
+                    TimeField(label: "Start Time", time: $caregiver.defaultStartTime)
+                    TimeField(label: "End Time", time: $caregiver.defaultEndTime)
                 }
             }
             .navigationTitle("Edit Caregiver")

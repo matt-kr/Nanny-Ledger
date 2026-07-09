@@ -13,7 +13,7 @@ struct HomeView: View {
     @Query(sort: \Shift.date, order: .reverse) private var allShifts: [Shift]
     @Query private var settingsQuery: [AppSettings]
     @Query(sort: \Caregiver.createdDate) private var allCaregivers: [Caregiver]
-    
+
     @State private var showingAddSheet = false
     @State private var showingSettings = false
     @State private var shareItem: ShareItem?
@@ -25,117 +25,88 @@ struct HomeView: View {
     @State private var showingDuplicateAlert = false
     @State private var duplicateAlertMessage = ""
     @State private var showingReceiptForm = false
-    
+    @State private var justLogged = false
+    @State private var copiedNote = false
+
     private var settings: AppSettings {
-        if let existing = settingsQuery.first {
-            return existing
-        } else {
-            let newSettings = AppSettings()
-            modelContext.insert(newSettings)
-            try? modelContext.save()
-            return newSettings
-        }
+        settingsQuery.first ?? AppSettings()
     }
-    
-    private var currentCaregiver: Caregiver {
-        // Ensure default caregiver exists and get it
-        let caregiver = CaregiverMigration.ensureDefaultCaregiver(modelContext: modelContext, settings: settings)
-        
-        // Use selected caregiver if set, otherwise use last selected or default
-        if let selected = selectedCaregiver {
-            return selected
-        }
-        
-        // Try to restore last selected caregiver
-        if let lastId = settings.lastSelectedCaregiverId,
-           let lastCaregiver = allCaregivers.first(where: { $0.id == lastId }) {
-            DispatchQueue.main.async {
-                selectedCaregiver = lastCaregiver
-            }
-            return lastCaregiver
-        }
-        
-        // Default to first caregiver
-        DispatchQueue.main.async {
-            selectedCaregiver = caregiver
-        }
-        return caregiver
+
+    private var currentCaregiver: Caregiver? {
+        selectedCaregiver
+            ?? allCaregivers.first { $0.id == settings.lastSelectedCaregiverId }
+            ?? allCaregivers.first
     }
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Week Summary Header
-                    weekSummaryCard
-                    
-                    // Caregiver Info/Picker
-                    caregiverInfoSection
-                    
-                    // PROMINENT Log Today Button
-                    logTonightButton
-                    
-                    // Quick Actions
-                    quickActionsSection
-                    
-                    // Week-to-Date Actions
-                    weekActionsSection
-                    
-                    // Shift List
-                    shiftListSection
+                if let caregiver = currentCaregiver {
+                    VStack(spacing: 20) {
+                        caregiverPicker(current: caregiver)
+                        heroCard(for: caregiver)
+                        logTonightButton
+                        quickActionsRow
+                        if !weekShifts.isEmpty {
+                            paymentNoteCard
+                        }
+                        shiftListSection(for: caregiver)
+                        documentationSection
+                    }
+                    .padding()
+                } else {
+                    ProgressView()
+                        .padding(.top, 100)
                 }
-                .padding()
             }
-            .id(currentCaregiver.id) // Force refresh when caregiver changes
+            .background(Color(.systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 8) {
                         Image(systemName: "moon.stars.fill")
-                            .font(.title2)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                        
+                            .font(.title3)
+                            .foregroundStyle(Theme.gradient)
+
                         Text("Nanny Ledger")
-                            .font(.title.bold())
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .font(.title2.bold())
+                            .foregroundStyle(Theme.gradient)
                     }
                 }
-                
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingSettings = true
                     } label: {
-                        Image(systemName: "gear")
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .preferredColorScheme(colorSchemeForSetting(settings.colorScheme))
+            .task { ensureSetup() }
             .sheet(isPresented: $showingAddSheet) {
-                AddShiftView(defaultCaregiver: currentCaregiver)
+                if let caregiver = currentCaregiver {
+                    AddShiftView(defaultCaregiver: caregiver)
+                }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView(settings: settings)
+                if let settings = settingsQuery.first {
+                    SettingsView(settings: settings)
+                }
             }
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: item.activityItems)
             }
             .sheet(isPresented: $showingHistory) {
-                HistoryView(caregiver: currentCaregiver)
+                if let caregiver = currentCaregiver {
+                    HistoryView(caregiver: caregiver)
+                }
             }
             .sheet(isPresented: $showingReceiptForm) {
-                ReceiptFormView(shifts: caregiverShifts, caregiver: currentCaregiver, settings: settings)
+                if let caregiver = currentCaregiver, let settings = settingsQuery.first {
+                    ReceiptFormView(shifts: caregiverShifts, caregiver: caregiver, settings: settings)
+                }
             }
             .sheet(item: $shiftToEdit) { shift in
                 EditShiftView(shift: shift)
@@ -152,7 +123,7 @@ struct HomeView: View {
                     shiftToDelete = nil
                 }
             } message: { shift in
-                Text("\(shift.date.formattedWithWeekday())\n\(shift.startTime) – \(shift.endTime)")
+                Text("\(shift.date.formattedWithWeekday())\n\(shift.timeRangeDisplay)")
             }
             .alert("Already Logged", isPresented: $showingDuplicateAlert) {
                 Button("OK", role: .cancel) { }
@@ -161,293 +132,330 @@ struct HomeView: View {
             }
         }
     }
-    
-    // MARK: - Caregiver Info Section
-    
-    private var caregiverInfoSection: some View {
-        VStack(spacing: 0) {
-            // Caregiver Picker Menu
-            Menu {
-                ForEach(allCaregivers, id: \.id) { caregiver in
-                    Button {
-                        selectedCaregiver = caregiver
-                        settings.lastSelectedCaregiverId = caregiver.id
-                        try? modelContext.save()
-                    } label: {
-                        HStack {
-                            Text(caregiver.displayName)
-                            if caregiver.id == currentCaregiver.id {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
-                
-                Divider()
-                
+
+    // MARK: - Setup
+
+    private func ensureSetup() {
+        // Create settings on first launch
+        let appSettings: AppSettings
+        if let existing = settingsQuery.first {
+            appSettings = existing
+        } else {
+            appSettings = AppSettings()
+            modelContext.insert(appSettings)
+        }
+
+        // Ensure a default caregiver exists and adopt any orphaned shifts
+        let caregiver = CaregiverMigration.ensureDefaultCaregiver(modelContext: modelContext, settings: appSettings)
+
+        if selectedCaregiver == nil {
+            selectedCaregiver = allCaregivers.first { $0.id == appSettings.lastSelectedCaregiverId } ?? caregiver
+        }
+
+        try? modelContext.save()
+    }
+
+    // MARK: - Caregiver Picker
+
+    private func caregiverPicker(current: Caregiver) -> some View {
+        Menu {
+            ForEach(allCaregivers, id: \.id) { caregiver in
                 Button {
-                    showingSettings = true
+                    selectedCaregiver = caregiver
+                    settings.lastSelectedCaregiverId = caregiver.id
+                    try? modelContext.save()
                 } label: {
-                    Label("Manage Caregivers", systemImage: "person.badge.plus")
-                }
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(currentCaregiver.name)
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                        
-                        if !currentCaregiver.zelleInfo.isEmpty {
-                            Text(currentCaregiver.zelleInfo)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                    HStack {
+                        Text(caregiver.displayName)
+                        if caregiver.id == current.id {
+                            Image(systemName: "checkmark")
                         }
                     }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.down")
+                }
+            }
+
+            Divider()
+
+            Button {
+                showingSettings = true
+            } label: {
+                Label("Manage Caregivers", systemImage: "person.badge.plus")
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Theme.gradient.opacity(0.15))
+                        .frame(width: 40, height: 40)
+                    Text(String(current.name.prefix(1)).uppercased())
+                        .font(.headline)
+                        .foregroundStyle(Theme.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(current.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Text(subtitle(for: current))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                .foregroundColor(.primary)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                Spacer()
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .cardStyle(padding: 12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func subtitle(for caregiver: Caregiver) -> String {
+        var parts: [String] = []
+        if !caregiver.role.isEmpty && caregiver.role != caregiver.name {
+            parts.append(caregiver.role)
+        }
+        parts.append("\(caregiver.hourlyRate.currencyString)/hr")
+        if !caregiver.zelleInfo.isEmpty {
+            parts.append(caregiver.zelleInfo)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    // MARK: - Hero Card
+
+    private func heroCard(for caregiver: Caregiver) -> some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("This Week")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(weekRangeLabel)
+                    .font(.caption)
+                    .opacity(0.85)
+            }
+
+            HStack(spacing: 0) {
+                heroStat(value: "\(weekShifts.count)", label: weekShifts.count == 1 ? "night" : "nights")
+                heroDivider
+                heroStat(value: weekHours.hoursString, label: "hours")
+                heroDivider
+                heroStat(value: weekTotal(for: caregiver).currencyString, label: "total due")
+            }
+
+            if earlierUnpaidTotal(for: caregiver) > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption)
+                    Text("Earlier weeks unpaid: \(earlierUnpaidTotal(for: caregiver).currencyString)")
+                        .font(.caption.weight(.medium))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.white.opacity(0.18))
+                .clipShape(Capsule())
             }
         }
+        .foregroundStyle(.white)
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(Theme.gradient)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .purple.opacity(0.3), radius: 12, y: 6)
     }
-    
-    // MARK: - Week Summary Card
-    
-    private var weekSummaryCard: some View {
-        VStack(spacing: 8) {
-            Text("This Week")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            
-            HStack(spacing: 20) {
-                VStack {
-                    Text("\(weekShifts.count)")
-                        .font(.system(size: 36, weight: .bold))
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                    Text(weekShifts.count == 1 ? "night" : "nights")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                
-                VStack {
-                    Text(String(format: "%.2f", weekHours))
-                        .font(.system(size: 36, weight: .bold))
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                    Text("hours")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                
-                VStack {
-                    Text(formatCurrency(weekTotal))
-                        .font(.system(size: 36, weight: .bold))
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                    Text("total due")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            Text("Rate: \(formatCurrency(currentCaregiver.hourlyRate))/hour")
+
+    private var heroDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.25))
+            .frame(width: 1, height: 36)
+    }
+
+    private func heroStat(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            Text(label)
                 .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            // Payment Note
-            if !weekShifts.isEmpty {
-                Divider()
-                    .padding(.vertical, 4)
-                
-                VStack(spacing: 4) {
-                    Text("Payment Note")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    Button {
-                        UIPasteboard.general.string = zelleNote
-                    } label: {
-                        Text(zelleNote)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-                            .minimumScaleFactor(0.5)
-                            .lineLimit(3)
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                }
-            }
+                .opacity(0.85)
         }
         .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
     }
-    
-    // MARK: - Log Today Button (PROMINENT)
-    
+
+    private var weekRangeLabel: String {
+        let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return "\(formatter.string(from: weekStart)) – \(formatter.string(from: weekStart.addingDays(6)))"
+    }
+
+    // MARK: - Log Tonight Button
+
     private var logTonightButton: some View {
         Button {
-            logTonight()
+            logShift(for: Date(), dayLabel: "today")
         } label: {
-            HStack {
-                Image(systemName: "moon.stars.fill")
-                    .font(.title2)
-                Text("Log Today")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+            HStack(spacing: 10) {
+                Image(systemName: justLogged ? "checkmark.circle.fill" : "moon.stars.fill")
+                    .font(.title3)
+                Text(justLogged ? "Logged!" : "Log Today")
+                    .font(.title3.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .background(
-                LinearGradient(
-                    colors: [Color.blue, Color.purple],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+            .padding(.vertical, 18)
+            .background(justLogged ? AnyShapeStyle(.green) : AnyShapeStyle(Theme.gradient))
             .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .purple.opacity(0.3), radius: 8, y: 4)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: .purple.opacity(0.25), radius: 8, y: 4)
         }
+        .disabled(justLogged)
+        .animation(.snappy, value: justLogged)
     }
-    
+
     // MARK: - Quick Actions
-    
-    private var quickActionsSection: some View {
-        VStack(spacing: 12) {
+
+    private var quickActionsRow: some View {
+        HStack(spacing: 12) {
             Button {
-                logLastNight()
+                logShift(for: Date().addingDays(-1), dayLabel: "yesterday")
             } label: {
-                HStack {
-                    Image(systemName: "moon.fill")
-                    Text("Log Yesterday")
-                        .fontWeight(.medium)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                Label("Log Yesterday", systemImage: "moon.fill")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .foregroundColor(.primary)
-            
+
             Button {
                 showingAddSheet = true
             } label: {
-                HStack {
-                    Image(systemName: "calendar.badge.plus")
-                    Text("Add Specific Date")
-                        .fontWeight(.medium)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                Label("Pick a Date", systemImage: "calendar.badge.plus")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .foregroundColor(.primary)
         }
     }
-    
-    // MARK: - Week Actions
-    
-    private var weekActionsSection: some View {
-        VStack(spacing: 12) {
-            Text("Documentation")
-                .font(.headline)
+
+    // MARK: - Payment Note
+
+    private var paymentNoteCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Payment Note", systemImage: "text.quote")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+            }
+
+            Text(zelleNote)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             HStack(spacing: 12) {
+                Button {
+                    UIPasteboard.general.string = zelleNote
+                    Haptics.tap()
+                    withAnimation { copiedNote = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        withAnimation { copiedNote = false }
+                    }
+                } label: {
+                    Label(copiedNote ? "Copied!" : "Copy", systemImage: copiedNote ? "checkmark" : "doc.on.doc")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(copiedNote ? Color.green.opacity(0.15) : Theme.accent.opacity(0.12))
+                        .foregroundStyle(copiedNote ? Color.green : Theme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+
                 Button {
                     shareWeekNote()
                 } label: {
-                    VStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share Week")
-                            .font(.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Theme.accent.opacity(0.12))
+                        .foregroundStyle(Theme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .foregroundColor(.primary)
-                
-                Button {
-                    generateReceipt()
-                } label: {
-                    VStack {
-                        Image(systemName: "doc.plaintext")
-                        Text("Receipt")
-                            .font(.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .foregroundColor(.primary)
-                .disabled(weekShifts.isEmpty)
             }
         }
+        .cardStyle()
     }
-    
+
     // MARK: - Shift List
-    
-    private var shiftListSection: some View {
+
+    private func shiftListSection(for caregiver: Caregiver) -> some View {
         VStack(spacing: 12) {
             HStack {
                 Text("This Week's Care")
                     .font(.headline)
-                
+
                 Spacer()
-                
+
+                if weekShifts.contains(where: { !$0.isPaid }) && !weekShifts.isEmpty {
+                    Button {
+                        markWeekPaid()
+                    } label: {
+                        Label("Mark Paid", systemImage: "checkmark.seal")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
+
                 if hasHistoricalShifts {
                     Button {
                         showingHistory = true
                     } label: {
                         HStack(spacing: 4) {
-                            Text("View History")
-                                .font(.subheadline)
+                            Text("History")
                             Image(systemName: "clock.arrow.circlepath")
-                                .font(.subheadline)
                         }
-                        .foregroundColor(.blue)
+                        .font(.subheadline)
+                        .foregroundStyle(.blue)
                     }
                 }
             }
-            
+
             if weekShifts.isEmpty {
-                Text("No shifts logged this week")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 40)
+                VStack(spacing: 8) {
+                    Image(systemName: "moon.zzz")
+                        .font(.title)
+                        .foregroundStyle(.tertiary)
+                    Text("No shifts logged this week")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 36)
             } else {
                 VStack(spacing: 8) {
                     ForEach(weekShifts) { shift in
                         ShiftRowView(
                             shift: shift,
+                            rate: caregiver.hourlyRate,
                             onDelete: {
                                 shiftToDelete = shift
                                 showingDeleteConfirmation = true
                             },
                             onTap: {
                                 shiftToEdit = shift
+                            },
+                            onTogglePaid: {
+                                shift.isPaid.toggle()
+                                try? modelContext.save()
+                                Haptics.tap()
                             }
                         )
                     }
@@ -455,152 +463,148 @@ struct HomeView: View {
             }
         }
     }
-    
-    // MARK: - Recipient Info Section
-    
-    
-    // MARK: - Computed Properties
-    
-    private var caregiverShifts: [Shift] {
-        allShifts.filter { $0.caregiver?.id == currentCaregiver.id }
+
+    // MARK: - Documentation
+
+    private var documentationSection: some View {
+        VStack(spacing: 12) {
+            Text("Documentation")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 12) {
+                Button {
+                    shareWeekNote()
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.title3)
+                        Text("Share Week")
+                            .font(.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .foregroundColor(.primary)
+                .disabled(weekShifts.isEmpty)
+
+                Button {
+                    showingReceiptForm = true
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: "doc.plaintext")
+                            .font(.title3)
+                        Text("Receipt")
+                            .font(.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .foregroundColor(.primary)
+                .disabled(caregiverShifts.isEmpty)
+            }
+        }
     }
-    
+
+    // MARK: - Computed Properties
+
+    private var caregiverShifts: [Shift] {
+        guard let caregiver = currentCaregiver else { return [] }
+        return allShifts.filter { $0.caregiver?.id == caregiver.id }
+    }
+
     private var weekShifts: [Shift] {
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
         return caregiverShifts.filter { $0.date >= weekStart }
     }
-    
+
     private var hasHistoricalShifts: Bool {
         let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
-        return allShifts.contains { 
-            $0.date < weekStart && $0.caregiver?.id == currentCaregiver.id
-        }
+        return caregiverShifts.contains { $0.date < weekStart }
     }
-    
+
     private var weekHours: Double {
         weekShifts.reduce(0.0) { $0 + $1.roundedHours }
     }
-    
-    private var weekTotal: Double {
-        weekHours * currentCaregiver.hourlyRate
+
+    private func weekTotal(for caregiver: Caregiver) -> Double {
+        weekHours * caregiver.hourlyRate
     }
-    
+
+    private func earlierUnpaidTotal(for caregiver: Caregiver) -> Double {
+        let weekStart = Date().startOfWeek(weekStartDay: settings.weekStartDay)
+        return caregiverShifts
+            .filter { $0.date < weekStart && !$0.isPaid }
+            .reduce(0.0) { $0 + $1.earnings(at: caregiver.hourlyRate) }
+    }
+
     private var zelleNote: String {
         NoteGenerator.generateZelleNote(shifts: weekShifts)
     }
-    
+
     // MARK: - Actions
-    
-    private func logTonight() {
-        let today = Date()
-        let todayStart = Calendar.current.startOfDay(for: today)
-        let defaults = currentCaregiver.defaultStartTime.isEmpty ? 
-            settings.defaultTimes(for: today) : 
-            (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
-        
-        // Check for exact duplicate
+
+    private func logShift(for date: Date, dayLabel: String) {
+        guard let caregiver = currentCaregiver else { return }
+
+        let dayStart = Calendar.current.startOfDay(for: date)
+        let defaults = caregiver.defaultStartTime.isEmpty ?
+            settings.defaultTimes(for: date) :
+            (start: caregiver.defaultStartTime, end: caregiver.defaultEndTime)
+
         let duplicateExists = allShifts.contains { shift in
-            Calendar.current.startOfDay(for: shift.date) == todayStart &&
-            shift.caregiver?.id == currentCaregiver.id &&
-            shift.startTime == defaults.start &&
-            shift.endTime == defaults.end
+            Calendar.current.startOfDay(for: shift.date) == dayStart &&
+            shift.caregiver?.id == caregiver.id
         }
-        
+
         if duplicateExists {
-            duplicateAlertMessage = "You already logged a shift for \(currentCaregiver.name) today from \(defaults.start) to \(defaults.end)."
+            duplicateAlertMessage = "You already logged a shift for \(caregiver.name) \(dayLabel). Tap the shift to edit it."
             showingDuplicateAlert = true
+            Haptics.warning()
             return
         }
-        
-        print("🔵 Logging shift with times: \(defaults.start) - \(defaults.end)")
-        print("🔵 Caregiver: \(currentCaregiver.name), Rate: \(currentCaregiver.hourlyRate)")
-        
+
         let shift = Shift(
-            date: today,
+            date: date,
             startTime: defaults.start,
             endTime: defaults.end,
-            caregiver: currentCaregiver
+            caregiver: caregiver
         )
-        
-        print("🔵 Created shift - Start: \(shift.startTime), End: \(shift.endTime)")
-        print("🔵 Shift duration: \(shift.durationHours)h, rounded: \(shift.roundedHours)h")
-        
+
         modelContext.insert(shift)
         try? modelContext.save()
-        
-        print("✅ Shift saved!")
+        Haptics.success()
+
+        if Calendar.current.isDateInToday(date) {
+            justLogged = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                justLogged = false
+            }
+        }
     }
-    
-    private func logLastNight() {
-        let yesterday = Date().addingDays(-1)
-        let defaults = currentCaregiver.defaultStartTime.isEmpty ? 
-            settings.defaultTimes(for: yesterday) : 
-            (start: currentCaregiver.defaultStartTime, end: currentCaregiver.defaultEndTime)
-        
-        // Check for duplicate shift
-        let yesterdayStart = Calendar.current.startOfDay(for: yesterday)
-        let duplicateExists = allShifts.contains { shift in
-            let shiftStart = Calendar.current.startOfDay(for: shift.date)
-            return shiftStart == yesterdayStart &&
-                   shift.caregiver?.id == currentCaregiver.id &&
-                   shift.startTime == defaults.start &&
-                   shift.endTime == defaults.end
+
+    private func markWeekPaid() {
+        for shift in weekShifts where !shift.isPaid {
+            shift.isPaid = true
         }
-        
-        if duplicateExists {
-            duplicateAlertMessage = "You already logged a shift for \(currentCaregiver.name) yesterday from \(defaults.start) to \(defaults.end)."
-            showingDuplicateAlert = true
-            return
-        }
-        
-        let shift = Shift(
-            date: yesterday,
-            startTime: defaults.start,
-            endTime: defaults.end,
-            caregiver: currentCaregiver
-        )
-        
-        modelContext.insert(shift)
         try? modelContext.save()
+        Haptics.success()
     }
-    
-    private func copyWeekNote() {
-        let note = NoteGenerator.generateWeekNote(
-            shifts: weekShifts,
-            rate: currentCaregiver.hourlyRate,
-            appendTotals: settings.appendTotalsToNote
-        )
-        UIPasteboard.general.string = note
-    }
-    
+
     private func shareWeekNote() {
+        guard let caregiver = currentCaregiver else { return }
         let note = NoteGenerator.generateWeekNote(
             shifts: weekShifts,
-            rate: currentCaregiver.hourlyRate,
+            rate: caregiver.hourlyRate,
             appendTotals: settings.appendTotalsToNote
         )
         shareItem = ShareItem(text: note)
     }
-    
-    private func generateReceipt() {
-        showingReceiptForm = true
-    }
-    
-    private func copyFullNote() {
-        let note = NoteGenerator.generateFullNote(
-            shifts: allShifts,
-            rate: settings.hourlyRate
-        )
-        UIPasteboard.general.string = note
-    }
-    
-    private func formatCurrency(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = .current
-        return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
-    }
-    
+
     private func colorSchemeForSetting(_ setting: Int) -> ColorScheme? {
         switch setting {
         case 1: return .light
@@ -616,17 +620,17 @@ struct ShareItem: Identifiable {
     let id = UUID()
     let text: String?
     let url: URL?
-    
+
     init(text: String) {
         self.text = text
         self.url = nil
     }
-    
+
     init(url: URL) {
         self.text = nil
         self.url = url
     }
-    
+
     var activityItems: [Any] {
         if let text = text {
             return [text]
@@ -639,15 +643,15 @@ struct ShareItem: Identifiable {
 
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
-    
+
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
-    
+
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {
     HomeView()
-        .modelContainer(for: [Shift.self, AppSettings.self])
+        .modelContainer(for: [Shift.self, AppSettings.self, Caregiver.self])
 }

@@ -39,7 +39,7 @@ struct SettingsView: View {
                                 }
                             }
                             Spacer()
-                            Text(formatCurrency(caregiver.hourlyRate))
+                            Text("\(caregiver.hourlyRate.currencyString)/hr")
                                 .foregroundStyle(.secondary)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
@@ -161,13 +161,6 @@ struct SettingsView: View {
                 Text(errorMessage)
             }
         }
-    }
-    
-    private func formatCurrency(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = .current
-        return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
     }
     
     private func shareData() {
@@ -334,33 +327,20 @@ struct WeekdayTimeRow: View {
     let day: String
     @Binding var startTime: String
     @Binding var endTime: String
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(day)
-                .font(.headline)
-            
+        DisclosureGroup {
+            TimeField(label: "Start", time: $startTime)
+            TimeField(label: "End", time: $endTime)
+        } label: {
             HStack {
-                Text("Start")
-                    .foregroundStyle(.secondary)
+                Text(day)
                 Spacer()
-                TextField("HH:mm", text: $startTime)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 80)
-                    .keyboardType(.numbersAndPunctuation)
-            }
-            
-            HStack {
-                Text("End")
+                Text("\(TimeUtil.display(startTime)) – \(TimeUtil.display(endTime))")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Spacer()
-                TextField("HH:mm", text: $endTime)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 80)
-                    .keyboardType(.numbersAndPunctuation)
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
