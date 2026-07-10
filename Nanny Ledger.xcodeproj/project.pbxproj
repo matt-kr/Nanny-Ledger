@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2EBA700F8B493EB24D1F2FB7 /* NannyLedgerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC580D1647FFF2253F66C121 /* NannyLedgerWidget.swift */; };
+		DCFFA10CB8E7FD91302A4F5C /* NannyLedgerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3BEF432039FD52D8CD16DA90 /* NannyLedgerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F26CC488C5A2AD598C89EA27 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 567BA6D5D39186DAD83E2179 /* SwiftUI.framework */; };
+		F652EA2CF3CF5752CE7412DF /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E079D355C61229E3B912E6A /* WidgetKit.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		550281062E96CF2400F2DD29 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +28,40 @@
 			remoteGlobalIDString = 550280F32E96CF2300F2DD29;
 			remoteInfo = "Nanny Ledger";
 		};
+		711F107D6B070D35C61FA243 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 550280EC2E96CF2300F2DD29 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2B5BCF3A4337417C327C4973;
+			remoteInfo = NannyLedgerWidget;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		25DB1240C8AE121B55F4DBE5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				DCFFA10CB8E7FD91302A4F5C /* NannyLedgerWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		370F86ECF6A05DAF611EE4EE /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3BEF432039FD52D8CD16DA90 /* NannyLedgerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NannyLedgerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		550280F42E96CF2300F2DD29 /* Nanny Ledger.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Nanny Ledger.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		550281052E96CF2400F2DD29 /* Nanny LedgerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Nanny LedgerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5502810F2E96CF2400F2DD29 /* Nanny LedgerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Nanny LedgerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		567BA6D5D39186DAD83E2179 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		8C54410E7C8F48AAE0F48B43 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		8E079D355C61229E3B912E6A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		CC580D1647FFF2253F66C121 /* NannyLedgerWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NannyLedgerWidget.swift; sourceTree = "<group>"; };
+		EEB68201C9065714B0393845 /* NannyLedgerWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NannyLedgerWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -50,11 +85,15 @@
 		};
 		550281082E96CF2400F2DD29 /* Nanny LedgerTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Nanny LedgerTests";
 			sourceTree = "<group>";
 		};
 		550281122E96CF2400F2DD29 /* Nanny LedgerUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "Nanny LedgerUITests";
 			sourceTree = "<group>";
 		};
@@ -82,9 +121,37 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B39FF6F0E369C1A26B9D82FC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F26CC488C5A2AD598C89EA27 /* SwiftUI.framework in Frameworks */,
+				F652EA2CF3CF5752CE7412DF /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		087EFEFBF49823C3FA5D5AE9 /* NannyLedgerWidget */ = {
+			isa = PBXGroup;
+			children = (
+				CC580D1647FFF2253F66C121 /* NannyLedgerWidget.swift */,
+				370F86ECF6A05DAF611EE4EE /* Info.plist */,
+				EEB68201C9065714B0393845 /* NannyLedgerWidget.entitlements */,
+			);
+			name = NannyLedgerWidget;
+			path = NannyLedgerWidget;
+			sourceTree = "<group>";
+		};
+		1C52389C9075CAECE88C9EAA /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				8C54410E7C8F48AAE0F48B43 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		550280EB2E96CF2300F2DD29 = {
 			isa = PBXGroup;
 			children = (
@@ -92,6 +159,8 @@
 				550281082E96CF2400F2DD29 /* Nanny LedgerTests */,
 				550281122E96CF2400F2DD29 /* Nanny LedgerUITests */,
 				550280F52E96CF2300F2DD29 /* Products */,
+				6E520C0FE8565FA6A6B57A13 /* Frameworks */,
+				087EFEFBF49823C3FA5D5AE9 /* NannyLedgerWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -101,13 +170,41 @@
 				550280F42E96CF2300F2DD29 /* Nanny Ledger.app */,
 				550281052E96CF2400F2DD29 /* Nanny LedgerTests.xctest */,
 				5502810F2E96CF2400F2DD29 /* Nanny LedgerUITests.xctest */,
+				3BEF432039FD52D8CD16DA90 /* NannyLedgerWidget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		6E520C0FE8565FA6A6B57A13 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1C52389C9075CAECE88C9EAA /* iOS */,
+				567BA6D5D39186DAD83E2179 /* SwiftUI.framework */,
+				8E079D355C61229E3B912E6A /* WidgetKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2B5BCF3A4337417C327C4973 /* NannyLedgerWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 45F850D9AF9538BAE8712547 /* Build configuration list for PBXNativeTarget "NannyLedgerWidget" */;
+			buildPhases = (
+				6116DC017544763CAB2227E9 /* Sources */,
+				B39FF6F0E369C1A26B9D82FC /* Frameworks */,
+				15C4A155B998351BDF2E80B4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NannyLedgerWidget;
+			productName = NannyLedgerWidget;
+			productReference = 3BEF432039FD52D8CD16DA90 /* NannyLedgerWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		550280F32E96CF2300F2DD29 /* Nanny Ledger */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 550281182E96CF2400F2DD29 /* Build configuration list for PBXNativeTarget "Nanny Ledger" */;
@@ -115,17 +212,17 @@
 				550280F02E96CF2300F2DD29 /* Sources */,
 				550280F12E96CF2300F2DD29 /* Frameworks */,
 				550280F22E96CF2300F2DD29 /* Resources */,
+				25DB1240C8AE121B55F4DBE5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				8BD164CA5757B0AA93B163DF /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				550280F62E96CF2300F2DD29 /* Nanny Ledger */,
 			);
 			name = "Nanny Ledger";
-			packageProductDependencies = (
-			);
 			productName = "Nanny Ledger";
 			productReference = 550280F42E96CF2300F2DD29 /* Nanny Ledger.app */;
 			productType = "com.apple.product-type.application";
@@ -147,8 +244,6 @@
 				550281082E96CF2400F2DD29 /* Nanny LedgerTests */,
 			);
 			name = "Nanny LedgerTests";
-			packageProductDependencies = (
-			);
 			productName = "Nanny LedgerTests";
 			productReference = 550281052E96CF2400F2DD29 /* Nanny LedgerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -170,8 +265,6 @@
 				550281122E96CF2400F2DD29 /* Nanny LedgerUITests */,
 			);
 			name = "Nanny LedgerUITests";
-			packageProductDependencies = (
-			);
 			productName = "Nanny LedgerUITests";
 			productReference = 5502810F2E96CF2400F2DD29 /* Nanny LedgerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -216,11 +309,19 @@
 				550280F32E96CF2300F2DD29 /* Nanny Ledger */,
 				550281042E96CF2400F2DD29 /* Nanny LedgerTests */,
 				5502810E2E96CF2400F2DD29 /* Nanny LedgerUITests */,
+				2B5BCF3A4337417C327C4973 /* NannyLedgerWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		15C4A155B998351BDF2E80B4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		550280F22E96CF2300F2DD29 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -266,6 +367,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6116DC017544763CAB2227E9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2EBA700F8B493EB24D1F2FB7 /* NannyLedgerWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -279,9 +388,46 @@
 			target = 550280F32E96CF2300F2DD29 /* Nanny Ledger */;
 			targetProxy = 550281102E96CF2400F2DD29 /* PBXContainerItemProxy */;
 		};
+		8BD164CA5757B0AA93B163DF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NannyLedgerWidget;
+			target = 2B5BCF3A4337417C327C4973 /* NannyLedgerWidget */;
+			targetProxy = 711F107D6B070D35C61FA243 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0D38BBB66A3BE360BC810BE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = NannyLedgerWidget/NannyLedgerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 796NKS3C66;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NannyLedgerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Nanny Ledger";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.11;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.mattkrussow.Nanny-Ledger.NannyLedgerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		550281192E96CF2400F2DD29 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -562,9 +708,48 @@
 			};
 			name = Release;
 		};
+		D9ED43C78B601316011C88C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = NannyLedgerWidget/NannyLedgerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 796NKS3C66;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NannyLedgerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Nanny Ledger";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.11;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.mattkrussow.Nanny-Ledger.NannyLedgerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		45F850D9AF9538BAE8712547 /* Build configuration list for PBXNativeTarget "NannyLedgerWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0D38BBB66A3BE360BC810BE6 /* Release */,
+				D9ED43C78B601316011C88C6 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		550280EF2E96CF2300F2DD29 /* Build configuration list for PBXProject "Nanny Ledger" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

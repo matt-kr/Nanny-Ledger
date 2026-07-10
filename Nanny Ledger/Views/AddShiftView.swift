@@ -134,6 +134,7 @@ struct AddShiftView: View {
 
         modelContext.insert(shift)
         try? modelContext.save()
+        WidgetSnapshotService.refresh(modelContext: modelContext)
         Haptics.success()
         dismiss()
     }

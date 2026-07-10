@@ -14,6 +14,23 @@ final class LogShiftUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
+        // Fresh install: complete onboarding first
+        let getStarted = app.buttons["Get Started"]
+        if getStarted.waitForExistence(timeout: 10) {
+            let nameField = app.textFields["Name"]
+            XCTAssertTrue(nameField.waitForExistence(timeout: 3), "Onboarding name field should exist")
+            nameField.tap()
+            nameField.typeText("Maria")
+
+            // Dismiss the keyboard so it doesn't cover the Get Started button
+            let returnKey = app.keyboards.buttons["Return"]
+            if returnKey.waitForExistence(timeout: 2) {
+                returnKey.tap()
+            }
+
+            getStarted.tap()
+        }
+
         let logButton = app.buttons["Log Today"]
         XCTAssertTrue(logButton.waitForExistence(timeout: 10), "Log Today button should exist")
         logButton.tap()

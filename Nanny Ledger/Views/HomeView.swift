@@ -87,6 +87,11 @@ struct HomeView: View {
             }
             .preferredColorScheme(colorSchemeForSetting(settings.colorScheme))
             .task { ensureSetup() }
+            .onOpenURL { url in
+                if url.host == "log-today" || url.absoluteString == "nannyledger://log-today" {
+                    logShift(for: Date(), dayLabel: "today")
+                }
+            }
             .sheet(isPresented: $showingAddSheet) {
                 if let caregiver = currentCaregiver {
                     AddShiftView(defaultCaregiver: caregiver)
@@ -131,6 +136,7 @@ struct HomeView: View {
                     if let shift = shiftToDelete {
                         modelContext.delete(shift)
                         try? modelContext.save()
+                        WidgetSnapshotService.refresh(modelContext: modelContext)
                     }
                     shiftToDelete = nil
                 }
@@ -172,6 +178,7 @@ struct HomeView: View {
         }
 
         try? modelContext.save()
+        WidgetSnapshotService.refresh(modelContext: modelContext)
     }
 
     // MARK: - Caregiver Picker
@@ -613,6 +620,7 @@ struct HomeView: View {
 
         modelContext.insert(shift)
         try? modelContext.save()
+        WidgetSnapshotService.refresh(modelContext: modelContext)
         Haptics.success()
 
         if Calendar.current.isDateInToday(date) {

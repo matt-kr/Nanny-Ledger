@@ -83,6 +83,7 @@ struct EditShiftView: View {
         shift.isPaid = isPaid
 
         try? modelContext.save()
+        WidgetSnapshotService.refresh(modelContext: modelContext)
         Haptics.success()
         dismiss()
     }
